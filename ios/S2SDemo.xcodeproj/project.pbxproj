@@ -9,8 +9,12 @@
 /* Begin PBXBuildFile section */
 		0C80B921A6F3F58F76C31292 /* libPods-S2SDemo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-S2SDemo.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		6E3069E01D40A7CA01F0C179 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		C40DF22A12888ED550EC1877 /* RCTApplePayButtonView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7C8E83C00263C9E501D3BAC3 /* RCTApplePayButtonView.mm */; };
+		C590E493A8D7941CC46A3743 /* ApplePayHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E86115E142D25D44CADAAAD6 /* ApplePayHandler.swift */; };
+		CC7C0CD561D08832BF0B68F0 /* RCTNativeApplePay.mm in Sources */ = {isa = PBXBuildFile; fileRef = 573F54CD97C97EB63118EC14 /* RCTNativeApplePay.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -18,11 +22,17 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = S2SDemo/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = S2SDemo/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = S2SDemo/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		20EE47CBDFAE47792A0D7897 /* S2SDemo.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = S2SDemo.entitlements; path = S2SDemo/S2SDemo.entitlements; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-S2SDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-S2SDemo.debug.xcconfig"; path = "Target Support Files/Pods-S2SDemo/Pods-S2SDemo.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-S2SDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-S2SDemo.release.xcconfig"; path = "Target Support Files/Pods-S2SDemo/Pods-S2SDemo.release.xcconfig"; sourceTree = "<group>"; };
+		573F54CD97C97EB63118EC14 /* RCTNativeApplePay.mm */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.objcpp; name = RCTNativeApplePay.mm; path = S2SDemo/RCTNativeApplePay.mm; sourceTree = "<group>"; };
+		591B133BF01877E2784E18C8 /* RCTNativeApplePay.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = RCTNativeApplePay.h; path = S2SDemo/RCTNativeApplePay.h; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-S2SDemo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-S2SDemo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = S2SDemo/AppDelegate.swift; sourceTree = "<group>"; };
+		7C8E83C00263C9E501D3BAC3 /* RCTApplePayButtonView.mm */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.objcpp; name = RCTApplePayButtonView.mm; path = S2SDemo/RCTApplePayButtonView.mm; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = S2SDemo/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		D80A358A58B19932673BC41A /* RCTApplePayButtonView.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = RCTApplePayButtonView.h; path = S2SDemo/RCTApplePayButtonView.h; sourceTree = "<group>"; };
+		E86115E142D25D44CADAAAD6 /* ApplePayHandler.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApplePayHandler.swift; path = S2SDemo/ApplePayHandler.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -46,6 +56,12 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				E86115E142D25D44CADAAAD6 /* ApplePayHandler.swift */,
+				573F54CD97C97EB63118EC14 /* RCTNativeApplePay.mm */,
+				7C8E83C00263C9E501D3BAC3 /* RCTApplePayButtonView.mm */,
+				591B133BF01877E2784E18C8 /* RCTNativeApplePay.h */,
+				D80A358A58B19932673BC41A /* RCTApplePayButtonView.h */,
+				20EE47CBDFAE47792A0D7897 /* S2SDemo.entitlements */,
 			);
 			name = S2SDemo;
 			sourceTree = "<group>";
@@ -159,6 +175,7 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				6E3069E01D40A7CA01F0C179 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -245,6 +262,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				C590E493A8D7941CC46A3743 /* ApplePayHandler.swift in Sources */,
+				CC7C0CD561D08832BF0B68F0 /* RCTNativeApplePay.mm in Sources */,
+				C40DF22A12888ED550EC1877 /* RCTApplePayButtonView.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -257,6 +277,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = S2SDemo/S2SDemo.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = S2SDemo/Info.plist;
@@ -287,6 +308,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = S2SDemo/S2SDemo.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = S2SDemo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -370,6 +392,10 @@
 				);
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(OTHER_CFLAGS)",
 					"-DFOLLY_NO_CONFIG",
@@ -377,8 +403,13 @@
 					"-DFOLLY_USE_LIBCPP=1",
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
 				);
+				PODFILE_DIR = "$(SRCROOT)";
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
+				USE_HERMES = true;
 			};
 			name = Debug;
 		};
@@ -435,6 +466,10 @@
 					"\"$(inherited)\"",
 				);
 				MTL_ENABLE_DEBUG_INFO = NO;
+				OTHER_CFLAGS = (
+					"$(inherited)",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
+				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(OTHER_CFLAGS)",
 					"-DFOLLY_NO_CONFIG",
@@ -442,8 +477,12 @@
 					"-DFOLLY_USE_LIBCPP=1",
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
+					"-DRCT_REMOVE_LEGACY_ARCH=1",
 				);
+				PODFILE_DIR = "$(SRCROOT)";
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
+				USE_HERMES = true;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

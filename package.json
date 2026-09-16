@@ -7,12 +7,16 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "server": "node mockServer.js"
   },
   "dependencies": {
+    "@react-native/new-app-screen": "0.87.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "react": "19.2.3",
     "react-native": "0.87.1",
-    "@react-native/new-app-screen": "0.87.1",
     "react-native-safe-area-context": "^5.5.2"
   },
   "devDependencies": {
@@ -38,5 +42,21 @@
   },
   "engines": {
     "node": ">= 22.11.0"
+  },
+  "codegenConfig": {
+    "name": "S2SDemoSpec",
+    "type": "all",
+    "jsSrcsDir": "specs",
+    "android": {
+      "javaPackageName": "com.s2sdemo.specs"
+    },
+    "ios": {
+      "modulesProvider": {
+        "NativeApplePay": "RCTNativeApplePay"
+      },
+      "componentProvider": {
+        "HyperApplePayButton": "RCTApplePayButtonView"
+      }
+    }
   }
 }
