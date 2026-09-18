@@ -7,8 +7,10 @@ wallet without ever touching card data, and confirm.
 
 ## Preview
 
-▶️ **[demo.mov](demo.mov)** — the full flow: lobby → amount → payment sheet →
-CVC → confirmed, back in the lobby.
+The full flow: lobby → amount → payment sheet → CVC → confirmed, back in the
+lobby.
+
+<img src="S2SDemo.gif" alt="Deposit flow: lobby, amount entry, payment sheet, CVC, confirmation" width="300" />
 
 Two halves, matching two columns of the diagram:
 
