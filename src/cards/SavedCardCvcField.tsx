@@ -70,6 +70,7 @@ export const SavedCardCvcField = forwardRef<CardFormHandle, Props>(
               container: StyleSheet.flatten([styles.box, styles[variant]]),
               input: fieldStyles.input,
             }}
+            cvcIcon="hidden"
           />
         </CardForm>
       </HyperPaymentMethodSession>
