@@ -43,6 +43,7 @@ export const SavedCardCvcField = forwardRef<CardFormHandle, Props>(
     );
     const fieldOptions = useMemo(
       () => ({
+        cvcIcon: "hidden",
         savedCard: {
           // paymentMethodToken: method.payment_token,
           paymentMethodData: { card: { cardNetwork: cardNetwork(method) } },

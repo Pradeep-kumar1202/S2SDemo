@@ -63,7 +63,7 @@ export const NewCardFields = forwardRef<CardFormHandle, Props>(
               </View>
               <View style={styles.pairItem}>
                 <Text style={styles.label}>CVC</Text>
-                <CardCVCField placeholder="123" />
+                <CardCVCField placeholder="123" options={{cvcIcon: "hidden"}} />
               </View>
             </View>
             <Text style={styles.label}>Name on card</Text>
