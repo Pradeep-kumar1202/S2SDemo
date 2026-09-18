@@ -5,6 +5,11 @@ It implements the **Deposit — Server to Server (Payments)** sequence diagram e
 to end: create an intent, put the player's amount on it, collect a card or
 wallet without ever touching card data, and confirm.
 
+## Preview
+
+▶️ **[demo.mov](demo.mov)** — the full flow: lobby → amount → payment sheet →
+CVC → confirmed, back in the lobby.
+
 Two halves, matching two columns of the diagram:
 
 | Diagram column | Here |
