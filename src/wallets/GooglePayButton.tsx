@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import HyperGooglePayButton from '../../specs/HyperGooglePayNativeComponent';
 
 /** com.google.android.gms.wallet.button.ButtonConstants.ButtonType */
@@ -35,18 +35,27 @@ export function GooglePayButton({
   style,
 }: Props) {
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={[styles.button, disabled && styles.disabled, style]}
-    >
+    <View style={[styles.button, disabled && styles.disabled, style]}>
       <HyperGooglePayButton
         type={type}
         appearance={theme}
         borderRadius={borderRadius}
         style={StyleSheet.absoluteFill}
       />
-    </Pressable>
+      {/*
+        Google's PayButton is a clickable native view, so a Pressable wrapped
+        around it never sees the touch. The transparent Pressable is rendered
+        after it, which puts it above in the native hierarchy and lets it take
+        the tap instead.
+      */}
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel="Google Pay"
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
   );
 }
 

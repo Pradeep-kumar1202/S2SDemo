@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
-import NativeGooglePay from '../specs/NativeGooglePay';
-import type { GooglePaySessionToken, WalletPaymentMethodData } from './api';
+import NativeGooglePay from '../../specs/NativeGooglePay';
+import type { GooglePaySessionToken, WalletPaymentMethodData } from '../server/api';
 import { toCamelCaseKeys, toSnakeCaseKeys } from './keyCase';
 
 export type GooglePayEnvironment = 'TEST' | 'PRODUCTION';

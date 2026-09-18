@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import HyperApplePayButton from '../../specs/HyperApplePayNativeComponent';
 
 /** PKPaymentButtonType */
@@ -40,11 +40,7 @@ export function ApplePayButton({
   style,
 }: Props) {
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={[styles.button, disabled && styles.disabled, style]}
-    >
+    <View style={[styles.button, disabled && styles.disabled, style]}>
       <HyperApplePayButton
         type={type}
         buttonStyle={buttonStyle}
@@ -52,7 +48,19 @@ export function ApplePayButton({
         disabled={disabled}
         style={StyleSheet.absoluteFill}
       />
-    </Pressable>
+      {/*
+        PKPaymentButton is a UIButton, so like Google's PayButton it takes the
+        touch before a Pressable wrapped around it can. The transparent
+        Pressable renders above it and handles the tap instead.
+      */}
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel="Apple Pay"
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
   );
 }
 

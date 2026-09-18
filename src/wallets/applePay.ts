@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
-import NativeApplePay from '../specs/NativeApplePay';
-import type { ApplePaySessionToken, WalletPaymentMethodData } from './api';
+import NativeApplePay from '../../specs/NativeApplePay';
+import type { ApplePaySessionToken, WalletPaymentMethodData } from '../server/api';
 
 export class ApplePayError extends Error {
   constructor(public code: 'cancelled' | 'failed' | 'unavailable', message: string) {
