@@ -1,49 +1,206 @@
+/* Dark palette, matching the native demo. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0f1a14;
+  --surface: #1b2a21;
+  --surface-alt: #24362b;
+  --border: #2e4436;
+  --text: #ffffff;
+  --muted: #9cb0a4;
+  --accent: #21c25e;
+  --accent-text: #062a13;
+  --danger: #f87171;
+  --danger-bg: #3b1d1d;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html {
-  height: 100%;
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
+* { box-sizing: border-box; }
 
 body {
-  min-height: 100%;
+  margin: 0;
+  background: #0a0f0c;
+  color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, sans-serif;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+/* The demo is a phone flow, so it renders in a phone-width column. */
+.phone {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg);
   display: flex;
   flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
+.screen { display: flex; flex-direction: column; flex: 1; padding: 16px; gap: 12px; }
+.screen-header { text-align: center; }
+.screen-header h1 { font-size: 17px; margin: 8px 0 2px; }
+.screen-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.muted { color: var(--muted); margin: 0; }
+.small { font-size: 12px; }
+.center { text-align: center; }
+.grow { flex: 1; text-align: left; }
+.mono { letter-spacing: 1px; }
+.hint { color: var(--muted); font-size: 12px; text-align: center; }
+
+button { font: inherit; cursor: pointer; }
+button:disabled { opacity: 0.45; cursor: default; }
+
+.primary {
+  height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.link {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 8px;
+}
+
+.method-row { display: flex; gap: 8px; }
+.method-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+.method-label { flex: 1; text-align: left; }
+.chevron { color: var(--muted); }
+.cvc-pill { width: 96px; }
+
+.amount { flex: 1; display: flex; align-items: center; justify-content: center; }
+.amount input {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 56px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  caret-color: var(--accent);
+}
+
+.chips { display: flex; gap: 8px; }
+.chip {
+  flex: 1;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+}
+.chip-selected { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+
+.banner {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
   margin: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+.sheet-header { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
+.sheet-header h1 { font-size: 15px; margin: 0; }
+.back { background: none; border: 0; color: var(--text); font-size: 24px; line-height: 1; }
+.sheet-body { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.sheet-footer { display: flex; flex-direction: column; gap: 8px; }
+.section-title { text-align: center; font-size: 12px; font-weight: 700; margin: 4px 0 0; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card-selected { border-color: var(--accent); }
+.accordion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 13px;
+}
+.saved-icon {
+  width: 28px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 12px;
+}
+.saved-row { border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; padding-right: 12px; }
+.row-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+.radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--muted); display: inline-block; }
+.radio-on { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 47%); }
+.cvc-inline { width: 84px; }
+.card-fields { padding: 0 12px 12px; }
+
+.field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.field label { color: var(--muted); font-size: 11px; }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 34px; height: 22px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  flex: none;
+}
+.brand-visa { background: #1a1f71; color: #fff; font-style: italic; }
+.brand-amex { background: #2e77bc; color: #fff; }
+.brand-mastercard { background: #fff; }
+.brand-mastercard i { width: 14px; height: 14px; border-radius: 50%; display: block; }
+.brand-mastercard i:first-child { background: #eb001b; margin-right: -5px; }
+.brand-mastercard i:last-child { background: #f79e1b; opacity: 0.9; }
+.brand-wallet { background: #fff; color: #3c4043; }
+.brand-apple { background: #000; color: #fff; border: 1px solid #3a3a3c; }
+.brand-generic { background: #e5e7eb; color: #111827; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }

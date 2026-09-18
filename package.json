@@ -6,14 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "server": "node server/index.js"
   },
   "dependencies": {
+    "@juspay-tech/hyper-js": "^2.1.0",
+    "@juspay-tech/react-hyper-js": "^2.9.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.0",
+    "express": "^5.2.1",
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@types/googlepay": "^0.7.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
