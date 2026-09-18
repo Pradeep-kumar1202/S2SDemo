@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import {
   CardCVCField,
   CardForm,
-  HyperPaymentMethodsSession,
+  HyperPaymentMethodSession,
   type CardFormHandle,
 } from '@juspay-tech/react-native-hyperswitch-payment-methods';
 
@@ -60,7 +60,7 @@ export const SavedCardCvcField = forwardRef<CardFormHandle, Props>(
     }
 
     return (
-      <HyperPaymentMethodsSession hyper={hyper} options={options} onError={onError}>
+      <HyperPaymentMethodSession hyper={hyper} options={options} onError={onError}>
         <CardForm ref={ref}>
           <CardCVCField
             options={fieldOptions}
@@ -71,7 +71,7 @@ export const SavedCardCvcField = forwardRef<CardFormHandle, Props>(
             }}
           />
         </CardForm>
-      </HyperPaymentMethodsSession>
+      </HyperPaymentMethodSession>
     );
   },
 );

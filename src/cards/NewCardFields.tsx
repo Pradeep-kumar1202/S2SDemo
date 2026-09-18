@@ -6,7 +6,7 @@ import {
   CardForm,
   CardNumberField,
   CardholderNameField,
-  HyperPaymentMethodsSession,
+  HyperPaymentMethodSession,
   type CardFormHandle,
 } from '@juspay-tech/react-native-hyperswitch-payment-methods';
 
@@ -48,7 +48,7 @@ export const NewCardFields = forwardRef<CardFormHandle, Props>(
     }
 
     return (
-      <HyperPaymentMethodsSession hyper={hyper} options={options} onError={onError}>
+      <HyperPaymentMethodSession hyper={hyper} options={options} onError={onError}>
         <CardForm
           ref={ref}
           onChange={event => onComplete?.(event.complete && event.valid)}
@@ -70,7 +70,7 @@ export const NewCardFields = forwardRef<CardFormHandle, Props>(
             <CardholderNameField placeholder="John Doe" />
           </View>
         </CardForm>
-      </HyperPaymentMethodsSession>
+      </HyperPaymentMethodSession>
     );
   },
 );
