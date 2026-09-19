@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import type {
   ApplePaySessionToken,
   CreatePaymentResponse,
@@ -32,13 +34,32 @@ function lastUsedAt(method: CustomerPaymentMethod): number {
   return Number.isNaN(time) ? 0 : time;
 }
 
-/** Every stored method — cards and wallets alike — most recently used first. */
+/**
+ * Apple Pay exists only on iOS and Google Pay only on Android, so a stored
+ * wallet from the other platform can never be paid with here.
+ */
+export function walletSupportedOnThisOs(wallet: WalletName): boolean {
+  return wallet === 'apple_pay'
+    ? Platform.OS === 'ios'
+    : Platform.OS === 'android';
+}
+
+/**
+ * Every stored method — cards and wallets alike — most recently used first.
+ *
+ * Wallets the current OS cannot present are dropped here rather than at each
+ * call site, so they are absent from the saved list, from the wallet buttons,
+ * and from the method the deposit screen starts on.
+ */
 export function sortedSavedMethods(
   list: PaymentMethodList | undefined,
 ): CustomerPaymentMethod[] {
-  return [...(list?.customer_payment_methods ?? [])].sort(
-    (a, b) => lastUsedAt(b) - lastUsedAt(a),
-  );
+  return [...(list?.customer_payment_methods ?? [])]
+    .filter(method => {
+      const wallet = walletNameOf(method);
+      return wallet == null || walletSupportedOnThisOs(wallet);
+    })
+    .sort((a, b) => lastUsedAt(b) - lastUsedAt(a));
 }
 
 /** Just the cards, in that same order — what the Saved accordion lists. */
