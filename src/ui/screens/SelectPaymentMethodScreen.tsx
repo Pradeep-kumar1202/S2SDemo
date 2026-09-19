@@ -10,10 +10,14 @@ import {
   cardNetwork,
   otherPaymentMethods,
   requiresCvc,
-  sortedSavedCards,
+  savedWalletNames,
+  sortedSavedMethods,
+  walletLabel,
+  walletNameOf,
   type SelectedMethod,
   type WalletName,
 } from '../../paymentMethods';
+import { ApplePayButton } from '../../wallets/ApplePayButton';
 import { GooglePayButton } from '../../wallets/GooglePayButton';
 
 import { CardBrandMark } from '../CardBrandMark';
@@ -53,6 +57,7 @@ export function SelectPaymentMethodScreen({
   canDeposit,
   busy,
   error,
+  applePayReady,
   googlePayReady,
   publishableKey,
   wallets,
@@ -60,8 +65,17 @@ export function SelectPaymentMethodScreen({
 }: Props) {
   const [savedOpen, setSavedOpen] = useState(true);
 
-  const savedCards = sortedSavedCards(payment.payment_method_list);
+  // Every stored method, cards and wallets alike, most recently used first.
+  const savedMethods = sortedSavedMethods(payment.payment_method_list);
   const otherMethods = otherPaymentMethods(payment.payment_method_list);
+
+  // A wallet already listed as a saved row does not also get a button up top.
+  const savedWallets = savedWalletNames(payment.payment_method_list);
+  const walletButtons = wallets.filter(wallet => !savedWallets.includes(wallet));
+
+  /** Selecting a wallet turns the Deposit button into that wallet's button. */
+  const selectedWallet: WalletName | null =
+    selected?.kind === 'wallet' ? selected.wallet : null;
 
   return (
     <section className="screen">
@@ -73,23 +87,30 @@ export function SelectPaymentMethodScreen({
       </header>
 
       <div className="sheet-body">
-        {wallets.includes('google_pay') ? (
+        {walletButtons.includes('google_pay') ? (
           <GooglePayButton
             publishableKey={publishableKey}
             onPress={() => onWalletPress('google_pay')}
             disabled={busy || !googlePayReady}
           />
         ) : null}
-        {wallets.includes('google_pay') && !googlePayReady ? (
+        {walletButtons.includes('google_pay') && !googlePayReady ? (
           <p className="hint">Google Pay is not available in this browser.</p>
         ) : null}
-        {wallets.includes('apple_pay') ? (
+        {walletButtons.includes('apple_pay') ? (
+          <ApplePayButton
+            onPress={() => onWalletPress('apple_pay')}
+            disabled={busy}
+          />
+        ) : null}
+        {walletButtons.includes('apple_pay') && !applePayReady ? (
           <p className="hint">
-            Apple Pay needs a verified merchant domain, so it is not wired here.
+            Apple Pay needs Safari, and a merchant session issued for this
+            domain.
           </p>
         ) : null}
 
-        {savedCards.length > 0 ? (
+        {savedMethods.length > 0 ? (
           <div className="card">
             <button
               className="accordion"
@@ -102,7 +123,29 @@ export function SelectPaymentMethodScreen({
             </button>
 
             {savedOpen
-              ? savedCards.map(method => {
+              ? savedMethods.map(method => {
+                  const wallet = walletNameOf(method);
+                  if (wallet) {
+                    const walletSelected =
+                      selected?.kind === 'wallet' && selected.wallet === wallet;
+                    return (
+                      <div key={method.payment_token} className="saved-row">
+                        <button
+                          className="row-main"
+                          onClick={() => onSelect({ kind: 'wallet', wallet })}
+                          role="radio"
+                          aria-checked={walletSelected}
+                        >
+                          <span
+                            className={walletSelected ? 'radio radio-on' : 'radio'}
+                          />
+                          <CardBrandMark network={wallet} />
+                          <span className="grow">{walletLabel(wallet)}</span>
+                        </button>
+                      </div>
+                    );
+                  }
+
                   const isSelected =
                     selected?.kind === 'saved' &&
                     selected.paymentToken === method.payment_token;
@@ -188,9 +231,22 @@ export function SelectPaymentMethodScreen({
       </div>
 
       <footer className="sheet-footer">
-        <button className="primary" onClick={onDeposit} disabled={!canDeposit || busy}>
-          {busy ? 'Working…' : `Deposit ${formatAmount(amount)}`}
-        </button>
+        {selectedWallet === 'google_pay' ? (
+          <GooglePayButton
+            publishableKey={publishableKey}
+            onPress={() => onWalletPress('google_pay')}
+            disabled={busy || !googlePayReady || !canDeposit}
+          />
+        ) : selectedWallet === 'apple_pay' ? (
+          <ApplePayButton
+            onPress={() => onWalletPress('apple_pay')}
+            disabled={busy || !canDeposit}
+          />
+        ) : (
+          <button className="primary" onClick={onDeposit} disabled={!canDeposit || busy}>
+            {busy ? 'Working…' : `Deposit ${formatAmount(amount)}`}
+          </button>
+        )}
         <p className="muted small center">🔒 Your deposit is secure and encrypted</p>
       </footer>
     </section>

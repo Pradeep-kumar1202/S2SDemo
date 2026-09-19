@@ -42,4 +42,6 @@ declare module '@juspay-tech/hyper-js' {
 /** pay.js attaches the Google Pay API to window once it has loaded. */
 interface Window {
   google?: typeof google;
+  /** Safari only; absent in every other browser. */
+  ApplePaySession?: typeof ApplePaySession;
 }

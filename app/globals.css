@@ -31,10 +31,20 @@ body {
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  /* Fixed height, so a long list scrolls inside the sheet rather than
+     pushing the Deposit button off the bottom of the page. */
+  height: 100vh;
+  overflow: hidden;
 }
 
-.screen { display: flex; flex-direction: column; flex: 1; padding: 16px; gap: 12px; }
+.screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  gap: 12px;
+}
 .screen-header { text-align: center; }
 .screen-header h1 { font-size: 17px; margin: 8px 0 2px; }
 .screen-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
@@ -131,7 +141,18 @@ button:disabled { opacity: 0.45; cursor: default; }
 .sheet-header { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
 .sheet-header h1 { font-size: 15px; margin: 0; }
 .back { background: none; border: 0; color: var(--text); font-size: 24px; line-height: 1; }
-.sheet-body { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* Rows keep their own height; the body scrolls instead of squashing them. */
+.sheet-body > * {
+  flex-shrink: 0;
+}
 .sheet-footer { display: flex; flex-direction: column; gap: 8px; }
 .section-title { text-align: center; font-size: 12px; font-weight: 700; margin: 4px 0 0; }
 
@@ -199,6 +220,55 @@ button:disabled { opacity: 0.45; cursor: default; }
 .brand-wallet { background: #fff; color: #3c4043; }
 .brand-apple { background: #000; color: #fff; border: 1px solid #3a3a3c; }
 .brand-generic { background: #e5e7eb; color: #111827; }
+
+/*
+ * Google's button is created by pay.js with buttonSizeMode: 'fill', so it takes
+ * the size of this container — which therefore needs real dimensions. The class
+ * is deliberately not `gpay-button`: pay.js styles that name itself.
+ */
+.wallet-button {
+  width: 100%;
+  height: 48px;
+  display: block;
+}
+/* Let Google's rendered button fill the slot the green Deposit button uses. */
+.wallet-button > div,
+.wallet-button button {
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+}
+
+/*
+ * Safari draws this button itself from the -apple-pay-button appearance; the
+ * rules are inert in every other browser, where the button is never mounted.
+ */
+.apple-pay-button {
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 8px;
+  -webkit-appearance: -apple-pay-button;
+  appearance: -apple-pay-button;
+  -apple-pay-button-type: plain;
+  -apple-pay-button-style: white;
+}
+
+/* Shown where Safari's own button cannot be: a plain Apple Pay lookalike. */
+.apple-pay-fallback {
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: #000;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
 
 .visually-hidden {
   position: absolute; width: 1px; height: 1px;

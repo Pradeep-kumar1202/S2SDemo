@@ -5,6 +5,7 @@ import type { RefObject } from 'react';
 import { SavedCardCvcField } from '../../cards/SavedCardCvcField';
 import type { CardFormHandle } from '../../cards/types';
 import type { CreatePaymentResponse, CustomerPaymentMethod } from '../../server/api';
+import { ApplePayButton } from '../../wallets/ApplePayButton';
 import { GooglePayButton } from '../../wallets/GooglePayButton';
 import type { WalletName } from '../../paymentMethods';
 import { CardBrandMark } from '../CardBrandMark';
@@ -112,6 +113,8 @@ export function DepositScreen({
           onPress={onDeposit}
           disabled={busy || !walletReady || !canDeposit}
         />
+      ) : wallet === 'apple_pay' ? (
+        <ApplePayButton onPress={onDeposit} disabled={busy || !canDeposit} />
       ) : (
         <button className="primary" onClick={onDeposit} disabled={!canDeposit || busy}>
           {busy ? 'Working…' : 'Deposit'}

@@ -1,6 +1,11 @@
 import type { CreatePaymentResponse } from '../server/api';
 import { findWalletToken, type WalletName } from '../paymentMethods';
 import {
+  ApplePayError,
+  isApplePayAvailable,
+  payWithApplePay,
+} from '../wallets/applePay';
+import {
   GooglePayError,
   googlePayEnvironment,
   isReadyToPay,
@@ -22,10 +27,11 @@ import type { CollectOutcome } from './types';
  * which confirms it — the browser never confirms the payment itself, so the
  * authorization and fraud checks stay in front of every payment.
  *
- * Apple Pay on the web is not wired: it requires the merchant domain to be
- * registered and verified with Apple, which a localhost demo cannot do. The
- * session token is still fetched, so the button appears wherever the profile
- * has it enabled — it just reports this instead of opening a sheet.
+ * Apple Pay works the same way, with one constraint that is Apple's and cannot
+ * be worked around: the merchant session is issued for a specific, verified
+ * domain (`session_token_data.domainName`), and Safari refuses to start a
+ * session anywhere else. Served from localhost, the button appears in Safari
+ * and the sheet fails validation. See `src/wallets/applePay.ts`.
  */
 
 /** Whether each wallet can be used right now: a token, and a device that can pay. */
@@ -41,7 +47,10 @@ export async function walletAvailability(payment: CreatePaymentResponse): Promis
       )
     : false;
 
-  return { googlePayReady, applePayReady: false };
+  const applePayToken = findWalletToken(payment, 'apple_pay');
+  const applePayReady = applePayToken != null && isApplePayAvailable();
+
+  return { googlePayReady, applePayReady };
 }
 
 /** Which wallets the server returned session tokens for, if any. */
@@ -59,20 +68,19 @@ export async function collectWalletPayment(
   payment: CreatePaymentResponse,
   wallet: WalletName,
 ): Promise<CollectOutcome> {
-  if (wallet === 'apple_pay') {
-    return {
-      ok: false,
-      message:
-        'Apple Pay on the web needs a verified merchant domain — see src/flow/payWithWallet.ts',
-    };
-  }
-
-  const token = findWalletToken(payment, 'google_pay');
-  if (!token) {
-    return { ok: false, message: 'No Google Pay session token for this payment.' };
-  }
-
   try {
+    // Each wallet is looked up by its own name so its token type is known.
+    if (wallet === 'apple_pay') {
+      const token = findWalletToken(payment, 'apple_pay');
+      return token
+        ? { ok: true, body: await payWithApplePay(token) }
+        : { ok: false, message: 'No apple_pay session token for this payment.' };
+    }
+
+    const token = findWalletToken(payment, 'google_pay');
+    if (!token) {
+      return { ok: false, message: 'No google_pay session token for this payment.' };
+    }
     return {
       ok: true,
       body: await payWithGooglePay(
@@ -81,7 +89,10 @@ export async function collectWalletPayment(
       ),
     };
   } catch (error) {
-    if (error instanceof GooglePayError && error.code === 'cancelled') {
+    if (
+      (error instanceof GooglePayError || error instanceof ApplePayError) &&
+      error.code === 'cancelled'
+    ) {
       return { ok: false, message: 'Payment cancelled' };
     }
     return {

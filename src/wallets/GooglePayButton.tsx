@@ -9,6 +9,10 @@ import { googlePayEnvironment, paymentsClient } from './googlePay';
  *
  * Google requires their rendered button rather than a lookalike, so this mounts
  * the one `createButton` returns into a container div.
+ *
+ * The container is `wallet-button`, not `gpay-button`: pay.js injects its own
+ * stylesheet that styles `.gpay-button`, and those rules outrank ours, which
+ * pins the container to Google's default 240×40 instead of the page's layout.
  */
 export function GooglePayButton({
   publishableKey,
@@ -58,7 +62,7 @@ export function GooglePayButton({
   return (
     <div
       ref={host}
-      className="gpay-button"
+      className="wallet-button"
       aria-disabled={disabled}
       style={disabled ? { opacity: 0.45, pointerEvents: 'none' } : undefined}
     />

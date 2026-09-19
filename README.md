@@ -119,10 +119,25 @@ naming the stored card via `options.savedCard`, so `tokenize()` refreshes that
 card's CVC rather than collecting a new card. A CVC field with `savedCard` must
 be the only field in its form.
 
-**Wallets** — not wired here, and `src/flow/payWithWallet.ts` explains why: on
-web they are presented by `ExpressCheckoutElement`, which confirms from the
-browser, and that is a different integration from the server-side confirm this
-demo shows.
+**Wallets** — `src/flow/payWithWallet.ts`, with one module per wallet.
+
+*Google Pay* (`src/wallets/googlePay.ts`) loads Google's `pay.js`, builds the
+`PaymentDataRequest` from the session token and opens the sheet. The network
+token it returns is confirmed by the server, so the browser never confirms the
+payment itself.
+
+*Apple Pay* (`src/wallets/applePay.ts`) opens an `ApplePaySession` from the
+token's `payment_request_data`. Because the server fetched a validated merchant
+session (`delayed_session_token: false`), `onvalidatemerchant` hands
+`session_token_data` straight back to Apple — no round trip of its own.
+
+Two constraints on Apple Pay are Apple's and cannot be worked around:
+
+- **Safari only.** `window.ApplePaySession` does not exist in other browsers, so
+  the button is not offered there.
+- **The merchant session is issued for one verified domain**, named in
+  `session_token_data.domainName`. Served from anywhere else — localhost
+  included — Safari refuses to start the session.
 
 ### Step 4 — Confirm
 
@@ -173,7 +188,7 @@ to the lobby, which shows the result.
 | PAM authorize | Stubbed on the server; always approves |
 | Fraud screening | Stubbed on the server; always approves |
 | BIN eligibility | Not called |
-| Wallets | See `src/flow/payWithWallet.ts` |
+| Apple Pay from localhost | Wired, but Apple only validates the domain its merchant session was issued for |
 | Next action (3DS / redirect) | Detected and reported, never presented |
 | Status webhook + sync | Route exists on the server, nothing calls it |
 | Manual capture | Route exists; payments capture automatically |
@@ -192,6 +207,9 @@ design is a GBP screen and the sandbox profile is USD.
   log — the fields are the SDK's, and only tokens cross back.
 - **`tokenize()` never throws.** Every outcome, validation failures included, is
   a result with a `code` to branch on and a `message` safe to show.
+- **Google's button styles collide with common class names.** `pay.js` injects
+  rules for `.gpay-button`, so the container here is `.wallet-button` — reusing
+  Google's name lets their stylesheet size your layout.
 - **`@juspay-tech/react-hyper-js` ships no TypeScript types.** The components
   this demo uses are declared in `src/cards/declarations.d.ts`; anything else is
   importable but untyped.
