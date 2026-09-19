@@ -23,8 +23,12 @@ import {
   findWalletToken,
   otherPaymentMethods,
   requiresCvc,
-  sortedSavedCards,
+  savedWalletNames,
+  sortedSavedMethods,
+  walletLabel,
+  walletNameOf,
   type SelectedMethod,
+  type WalletName,
 } from '../../paymentMethods';
 import { theme } from '../theme';
 
@@ -69,12 +73,28 @@ export function SelectPaymentMethodScreen({
 }: Props) {
   const [savedOpen, setSavedOpen] = useState(true);
 
-  const savedCards = sortedSavedCards(payment.payment_method_list);
+  // Every stored method, cards and wallets alike, most recently used first.
+  const savedMethods = sortedSavedMethods(payment.payment_method_list);
   const otherMethods = otherPaymentMethods(payment.payment_method_list);
+
+  // A wallet already listed as a saved row does not also get a button up top.
+  const savedWallets = savedWalletNames(payment.payment_method_list);
   const applePayToken = findWalletToken(payment, 'apple_pay');
   const googlePayToken = findWalletToken(payment, 'google_pay');
-  const showApplePay = Platform.OS === 'ios' && applePayToken != null;
-  const showGooglePay = Platform.OS === 'android' && googlePayToken != null;
+  const showApplePay =
+    Platform.OS === 'ios' &&
+    applePayToken != null &&
+    !savedWallets.includes('apple_pay');
+  const showGooglePay =
+    Platform.OS === 'android' &&
+    googlePayToken != null &&
+    !savedWallets.includes('google_pay');
+
+  /** Selecting a wallet turns the Deposit button into that wallet's button. */
+  const selectedWallet: WalletName | null =
+    selected?.kind === 'wallet' ? selected.wallet : null;
+  const selectedWalletReady =
+    selectedWallet === 'apple_pay' ? applePayReady : googlePayReady;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -117,7 +137,7 @@ export function SelectPaymentMethodScreen({
           <Text style={styles.hint}>Google Pay is not available on this device.</Text>
         ) : null}
 
-        {savedCards.length > 0 ? (
+        {savedMethods.length > 0 ? (
           <View style={styles.card}>
             <Pressable
               onPress={() => setSavedOpen(open => !open)}
@@ -133,21 +153,31 @@ export function SelectPaymentMethodScreen({
             </Pressable>
 
             {savedOpen
-              ? savedCards.map(method => (
-                  <SavedCardRow
-                    key={method.payment_token}
-                    payment={payment}
-                    method={method}
-                    selected={
-                      selected?.kind === 'saved' &&
-                      selected.paymentToken === method.payment_token
-                    }
-                    onSelect={() =>
-                      onSelect({ kind: 'saved', paymentToken: method.payment_token })
-                    }
-                    cvcFormRef={cvcFormRef}
-                  />
-                ))
+              ? savedMethods.map(method => {
+                  const wallet = walletNameOf(method);
+                  return wallet ? (
+                    <SavedWalletRow
+                      key={method.payment_token}
+                      wallet={wallet}
+                      selected={selected?.kind === 'wallet' && selected.wallet === wallet}
+                      onSelect={() => onSelect({ kind: 'wallet', wallet })}
+                    />
+                  ) : (
+                    <SavedCardRow
+                      key={method.payment_token}
+                      payment={payment}
+                      method={method}
+                      selected={
+                        selected?.kind === 'saved' &&
+                        selected.paymentToken === method.payment_token
+                      }
+                      onSelect={() =>
+                        onSelect({ kind: 'saved', paymentToken: method.payment_token })
+                      }
+                      cvcFormRef={cvcFormRef}
+                    />
+                  );
+                })
               : null}
           </View>
         ) : null}
@@ -201,25 +231,67 @@ export function SelectPaymentMethodScreen({
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable
-          onPress={onDeposit}
-          disabled={!canDeposit || busy}
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.depositButton,
-            (!canDeposit || busy) && styles.depositDisabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          {busy ? (
-            <ActivityIndicator color={theme.accentText} />
-          ) : (
-            <Text style={styles.depositText}>Deposit {formatAmount(amount)}</Text>
-          )}
-        </Pressable>
+        {selectedWallet === 'apple_pay' ? (
+          <ApplePayButton
+            onPress={onApplePay}
+            disabled={busy || !selectedWalletReady || !canDeposit}
+            style={styles.walletButton}
+          />
+        ) : selectedWallet === 'google_pay' ? (
+          <GooglePayButton
+            onPress={onGooglePay}
+            disabled={busy || !selectedWalletReady || !canDeposit}
+            style={styles.walletButton}
+          />
+        ) : (
+          <Pressable
+            onPress={onDeposit}
+            disabled={!canDeposit || busy}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.depositButton,
+              (!canDeposit || busy) && styles.depositDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            {busy ? (
+              <ActivityIndicator color={theme.accentText} />
+            ) : (
+              <Text style={styles.depositText}>Deposit {formatAmount(amount)}</Text>
+            )}
+          </Pressable>
+        )}
         <Text style={styles.secure}>🔒 Your deposit is secure and encrypted</Text>
       </View>
     </SafeAreaView>
+  );
+}
+
+/** A wallet the customer has used before, listed beside their saved cards. */
+function SavedWalletRow({
+  wallet,
+  selected,
+  onSelect,
+}: {
+  wallet: WalletName;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onSelect}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      style={({ pressed }) => [styles.savedRow, pressed && styles.pressed]}
+    >
+      <View style={[styles.radio, selected && styles.radioSelected]}>
+        {selected ? <View style={styles.radioDot} /> : null}
+      </View>
+      <CardBrandMark network={wallet} />
+      <Text style={styles.savedLabel} numberOfLines={1}>
+        {walletLabel(wallet)}
+      </Text>
+    </Pressable>
   );
 }
 

@@ -32,7 +32,7 @@ export function buildPaymentDataRequest(token: GooglePaySessionToken) {
     apiVersion: 2,
     apiVersionMinor: 0,
     allowedPaymentMethods: toCamelCaseKeys(allowed_payment_methods),
-    transactionInfo: toCamelCaseKeys(transaction_info),
+    transactionInfo: transactionInfoFor(transaction_info),
     merchantInfo: toCamelCaseKeys(merchant_info),
     ...(email_required != null ? { emailRequired: email_required } : {}),
     ...(shipping_address_required != null
@@ -42,6 +42,19 @@ export function buildPaymentDataRequest(token: GooglePaySessionToken) {
       ? { shippingAddressParameters: toCamelCaseKeys(shipping_address_parameters) }
       : {}),
   };
+}
+
+/**
+ * Google requires `totalPriceStatus` to be one of NOT_CURRENTLY_KNOWN,
+ * ESTIMATED or FINAL, and rejects the whole request with DEVELOPER_ERROR
+ * otherwise. Hyperswitch spells it "Final", so it is upper-cased here.
+ */
+function transactionInfoFor(transactionInfo: GooglePaySessionToken['transaction_info']) {
+  const info = toCamelCaseKeys<Record<string, unknown>>(transactionInfo);
+  if (typeof info.totalPriceStatus === 'string') {
+    info.totalPriceStatus = info.totalPriceStatus.toUpperCase();
+  }
+  return info;
 }
 
 /** IsReadyToPayRequest = PaymentDataRequest minus tokenization details. */

@@ -61,6 +61,21 @@ export function walletNameOf(
   return type === 'apple_pay' || type === 'google_pay' ? type : null;
 }
 
+/** The wallets that appear as rows in the saved list. */
+export function savedWalletNames(
+  list: PaymentMethodList | undefined,
+): WalletName[] {
+  const wallets = sortedSavedMethods(list)
+    .map(walletNameOf)
+    .filter((wallet): wallet is WalletName => wallet != null);
+  return [...new Set(wallets)];
+}
+
+/** A saved wallet row's label. */
+export function walletLabel(wallet: WalletName): string {
+  return wallet === 'apple_pay' ? 'Apple Pay' : 'Google Pay';
+}
+
 /** The method at the top of that order — the one the deposit screen shows. */
 export function defaultSelection(
   list: PaymentMethodList | undefined,
