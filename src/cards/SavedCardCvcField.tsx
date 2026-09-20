@@ -5,6 +5,7 @@ import {
   CardForm,
   HyperPaymentMethodSession,
   type CardFormHandle,
+  type FieldOptions,
 } from '@juspay-tech/react-native-hyperswitch-payment-methods';
 
 import type { CreatePaymentResponse, CustomerPaymentMethod } from '../server/api';
@@ -41,9 +42,10 @@ export const SavedCardCvcField = forwardRef<CardFormHandle, Props>(
           : null,
       [vaultDetails],
     );
-    const fieldOptions = useMemo(
+    const fieldOptions = useMemo<FieldOptions>(
       () => ({
-        cvcIcon: "hidden",
+        placeholder: 'CVC',
+        cvcIcon: 'hidden',
         savedCard: {
           // paymentMethodToken: method.payment_token,
           paymentMethodData: { card: { cardNetwork: cardNetwork(method) } },
@@ -65,12 +67,10 @@ export const SavedCardCvcField = forwardRef<CardFormHandle, Props>(
         <CardForm ref={ref}>
           <CardCVCField
             options={fieldOptions}
-            placeholder="CVC"
             styles={{
               container: StyleSheet.flatten([styles.box, styles[variant]]),
               input: fieldStyles.input,
             }}
-            cvcIcon="hidden"
           />
         </CardForm>
       </HyperPaymentMethodSession>

@@ -7,6 +7,7 @@ import {
   CardNumberField,
   CardholderNameField,
   HyperPaymentMethodSession,
+  type FieldOptions,
   type CardFormHandle,
 } from '@juspay-tech/react-native-hyperswitch-payment-methods';
 
@@ -55,19 +56,19 @@ export const NewCardFields = forwardRef<CardFormHandle, Props>(
         >
           <View style={styles.fields}>
             <Text style={styles.label}>Card number</Text>
-            <CardNumberField placeholder="1234 5678 9012 3456" />
+            <CardNumberField options={FIELD_OPTIONS.cardNumber} />
             <View style={styles.pairRow}>
               <View style={styles.pairItem}>
                 <Text style={styles.label}>Expiry</Text>
-                <CardExpiryField placeholder="MM / YY" />
+                <CardExpiryField options={FIELD_OPTIONS.cardExpiry} />
               </View>
               <View style={styles.pairItem}>
                 <Text style={styles.label}>CVC</Text>
-                <CardCVCField placeholder="123" cvcIcon="hidden" />
+                <CardCVCField options={FIELD_OPTIONS.cardCvc} />
               </View>
             </View>
             <Text style={styles.label}>Name on card</Text>
-            <CardholderNameField placeholder="John Doe" />
+            <CardholderNameField options={FIELD_OPTIONS.cardholderName} />
           </View>
         </CardForm>
       </HyperPaymentMethodSession>
@@ -86,6 +87,13 @@ const appearance = {
     paddingHorizontal: 12,
   },
   input: { color: theme.text, fontSize: 15 },
+};
+
+const FIELD_OPTIONS: Record<string, FieldOptions> = {
+  cardNumber: { placeholder: '1234 5678 9012 3456' },
+  cardExpiry: { placeholder: 'MM / YY' },
+  cardCvc: { placeholder: '123', cvcIcon: 'hidden' },
+  cardholderName: { placeholder: 'John Doe' },
 };
 
 const styles = StyleSheet.create({
