@@ -49,6 +49,8 @@ type Props = {
   error?: string | null;
   applePayReady: boolean;
   googlePayReady: boolean;
+  /** Wallets this payment can actually use; anything else is hidden. */
+  offeredWallets: WalletName[];
   onApplePay: () => void;
   onGooglePay: () => void;
 };
@@ -68,6 +70,7 @@ export function SelectPaymentMethodScreen({
   error,
   applePayReady,
   googlePayReady,
+  offeredWallets,
   onApplePay,
   onGooglePay,
 }: Props) {
@@ -84,10 +87,12 @@ export function SelectPaymentMethodScreen({
   const showApplePay =
     Platform.OS === 'ios' &&
     applePayToken != null &&
+    offeredWallets.includes('apple_pay') &&
     !savedWallets.includes('apple_pay');
   const showGooglePay =
     Platform.OS === 'android' &&
     googlePayToken != null &&
+    offeredWallets.includes('google_pay') &&
     !savedWallets.includes('google_pay');
 
   /** Selecting a wallet turns the Deposit button into that wallet's button. */
@@ -130,13 +135,6 @@ export function SelectPaymentMethodScreen({
             style={styles.walletButton}
           />
         ) : null}
-        {showApplePay && !applePayReady ? (
-          <Text style={styles.hint}>Apple Pay is not available on this device.</Text>
-        ) : null}
-        {showGooglePay && !googlePayReady ? (
-          <Text style={styles.hint}>Google Pay is not available on this device.</Text>
-        ) : null}
-
         {savedMethods.length > 0 ? (
           <View style={styles.card}>
             <Pressable
@@ -155,6 +153,9 @@ export function SelectPaymentMethodScreen({
             {savedOpen
               ? savedMethods.map(method => {
                   const wallet = walletNameOf(method);
+                  if (wallet && !offeredWallets.includes(wallet)) {
+                    return null;
+                  }
                   return wallet ? (
                     <SavedWalletRow
                       key={method.payment_token}

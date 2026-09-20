@@ -97,18 +97,28 @@ export function walletLabel(wallet: WalletName): string {
   return wallet === 'apple_pay' ? 'Apple Pay' : 'Google Pay';
 }
 
-/** The method at the top of that order — the one the deposit screen shows. */
+/**
+ * The method at the top of that order — the one the deposit screen shows.
+ *
+ * `isWalletOffered` lets the caller skip a wallet this payment cannot actually
+ * use (no session token, no device support, or a Google Pay session that can
+ * only return a raw PAN), so the screen never opens on a method that is hidden
+ * everywhere else.
+ */
 export function defaultSelection(
   list: PaymentMethodList | undefined,
+  isWalletOffered: (wallet: WalletName) => boolean = () => true,
 ): SelectedMethod | null {
-  const [top] = sortedSavedMethods(list);
-  if (!top) {
-    return null;
+  for (const method of sortedSavedMethods(list)) {
+    const wallet = walletNameOf(method);
+    if (!wallet) {
+      return { kind: 'saved', paymentToken: method.payment_token };
+    }
+    if (isWalletOffered(wallet)) {
+      return { kind: 'wallet', wallet };
+    }
   }
-  const wallet = walletNameOf(top);
-  return wallet
-    ? { kind: 'wallet', wallet }
-    : { kind: 'saved', paymentToken: top.payment_token };
+  return null;
 }
 
 export function cardNetwork(method: CustomerPaymentMethod): string {

@@ -67,6 +67,18 @@ export function useDepositFlow() {
   const methodList = payment?.payment_method_list;
   const value = amountValue(amount);
 
+  /**
+   * A wallet is only offered when it can actually be paid with: the payment
+   * carries its session token and the device (and, for Google Pay, the session's
+   * auth methods) can use it. Anything else is hidden rather than disabled.
+   */
+  const walletOffered = useCallback(
+    (wallet: WalletName) =>
+      findWalletToken(payment, wallet) != null &&
+      (wallet === 'apple_pay' ? applePayReady : googlePayReady),
+    [applePayReady, googlePayReady, payment],
+  );
+
   // ---------------------------------------------------------------------------
   // Step 1 — create the intent when the player asks to deposit
   // ---------------------------------------------------------------------------
@@ -79,14 +91,20 @@ export function useDepositFlow() {
       const created = await createIntent();
       setPayment(created);
 
-      // The player's most recently used method leads, on both screens.
-      const top = defaultSelection(created.payment_method_list);
-      setDepositSelection(top);
-      setSheetSelection(top);
-
+      // Wallet availability is settled first: a wallet that cannot be used is
+      // hidden everywhere, so the screen must not start on one.
       const availability = await walletAvailability(created);
       setGooglePayReady(availability.googlePayReady);
       setApplePayReady(availability.applePayReady);
+
+      // The player's most recently used usable method leads, on both screens.
+      const top = defaultSelection(created.payment_method_list, wallet =>
+        wallet === 'apple_pay'
+          ? availability.applePayReady
+          : availability.googlePayReady,
+      );
+      setDepositSelection(top);
+      setSheetSelection(top);
 
       setScreen('deposit');
     } catch (e) {
@@ -321,6 +339,7 @@ export function useDepositFlow() {
       error,
       applePayReady,
       googlePayReady,
+      offeredWallets: (['google_pay', 'apple_pay'] as const).filter(walletOffered),
       onApplePay: () => payWithWallet('apple_pay'),
       onGooglePay: () => payWithWallet('google_pay'),
     },

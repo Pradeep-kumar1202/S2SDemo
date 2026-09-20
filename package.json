@@ -11,7 +11,7 @@
     "server": "node server/index.js"
   },
   "dependencies": {
-    "@juspay-tech/react-native-hyperswitch-payment-methods": "^1.0.3",
+    "@juspay-tech/react-native-hyperswitch-payment-methods": "^1.0.4",
     "@juspay-tech/react-native-hyperswitch-vault": "^1.0.1",
     "@react-native/new-app-screen": "0.87.1",
     "cors": "^2.8.6",
