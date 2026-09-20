@@ -12,6 +12,9 @@ import { toCamelCaseKeys, toSnakeCaseKeys } from './keyCase';
 
 export type GooglePayEnvironment = 'TEST' | 'PRODUCTION';
 
+/** The auth method that yields a network token rather than a raw PAN. */
+const CRYPTOGRAM_3DS = 'CRYPTOGRAM_3DS';
+
 /** Sandbox publishable keys (pk_snd_) map to Google's TEST environment. */
 export const googlePayEnvironment = (
   publishableKey: string,
@@ -57,10 +60,50 @@ export async function paymentsClient(
   return client;
 }
 
+/**
+ * Google Pay returns one of two things depending on the auth method the card
+ * supports: a network token (`CRYPTOGRAM_3DS`) or the raw card number
+ * (`PAN_ONLY`). This demo takes network tokens only, so:
+ *
+ *   - a session offering both is narrowed to `CRYPTOGRAM_3DS`, and
+ *   - a session offering only `PAN_ONLY` leaves nothing usable, which is
+ *     reported as "not available" so Google Pay is not offered at all.
+ *
+ * Returns the allowed payment methods with the auth methods narrowed, or null
+ * when no method can produce a network token.
+ */
+export function cryptogramOnlyPaymentMethods(
+  token: GooglePaySessionToken,
+): Record<string, unknown>[] | null {
+  const methods = toCamelCaseKeys<Record<string, unknown>[]>(
+    token.allowed_payment_methods ?? [],
+  );
+
+  const narrowed = methods.flatMap(method => {
+    const parameters = (method.parameters ?? {}) as Record<string, unknown>;
+    const authMethods = parameters.allowedAuthMethods;
+    if (!Array.isArray(authMethods) || !authMethods.includes(CRYPTOGRAM_3DS)) {
+      return [];
+    }
+    return [
+      {
+        ...method,
+        parameters: { ...parameters, allowedAuthMethods: [CRYPTOGRAM_3DS] },
+      },
+    ];
+  });
+
+  return narrowed.length > 0 ? narrowed : null;
+}
+
+/** Whether this session can produce a network token at all. */
+export function supportsCryptogram3ds(token: GooglePaySessionToken): boolean {
+  return cryptogramOnlyPaymentMethods(token) != null;
+}
+
 /** Converts the Hyperswitch session token into Google's PaymentDataRequest. */
 export function buildPaymentDataRequest(token: GooglePaySessionToken) {
   const {
-    allowed_payment_methods,
     transaction_info,
     merchant_info,
     email_required,
@@ -70,7 +113,7 @@ export function buildPaymentDataRequest(token: GooglePaySessionToken) {
   return {
     apiVersion: 2,
     apiVersionMinor: 0,
-    allowedPaymentMethods: toCamelCaseKeys(allowed_payment_methods),
+    allowedPaymentMethods: cryptogramOnlyPaymentMethods(token) ?? [],
     transactionInfo: transactionInfoFor(transaction_info),
     merchantInfo: toCamelCaseKeys(merchant_info),
     ...(email_required != null ? { emailRequired: email_required } : {}),
@@ -98,9 +141,9 @@ function transactionInfoFor(transactionInfo: GooglePaySessionToken['transaction_
 
 /** IsReadyToPayRequest = PaymentDataRequest minus tokenization details. */
 export function buildIsReadyToPayRequest(token: GooglePaySessionToken) {
-  const allowedPaymentMethods = toCamelCaseKeys<Record<string, unknown>[]>(
-    token.allowed_payment_methods,
-  ).map(({ tokenizationSpecification: _omit, ...method }) => method);
+  const allowedPaymentMethods = (cryptogramOnlyPaymentMethods(token) ?? []).map(
+    ({ tokenizationSpecification: _omit, ...method }) => method,
+  );
   return { apiVersion: 2, apiVersionMinor: 0, allowedPaymentMethods };
 }
 
@@ -108,6 +151,10 @@ export async function isReadyToPay(
   token: GooglePaySessionToken,
   environment: GooglePayEnvironment,
 ): Promise<boolean> {
+  // A PAN_ONLY-only session is treated as no Google Pay at all.
+  if (!supportsCryptogram3ds(token)) {
+    return false;
+  }
   try {
     const api = await paymentsClient(environment);
     const result = await api.isReadyToPay(

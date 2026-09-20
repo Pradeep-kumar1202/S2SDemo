@@ -94,9 +94,7 @@ export function SelectPaymentMethodScreen({
             disabled={busy || !googlePayReady}
           />
         ) : null}
-        {walletButtons.includes('google_pay') && !googlePayReady ? (
-          <p className="hint">Google Pay is not available in this browser.</p>
-        ) : null}
+
         {walletButtons.includes('apple_pay') ? (
           <ApplePayButton
             onPress={() => onWalletPress('apple_pay')}
@@ -125,6 +123,9 @@ export function SelectPaymentMethodScreen({
             {savedOpen
               ? savedMethods.map(method => {
                   const wallet = walletNameOf(method);
+                  if (wallet && !wallets.includes(wallet)) {
+                    return null;
+                  }
                   if (wallet) {
                     const walletSelected =
                       selected?.kind === 'wallet' && selected.wallet === wallet;

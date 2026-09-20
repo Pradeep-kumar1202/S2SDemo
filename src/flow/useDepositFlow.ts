@@ -73,6 +73,18 @@ export function useDepositFlow() {
   const methodList = payment?.payment_method_list;
   const value = amountValue(amount);
 
+  /**
+   * A wallet is offered when the payment carries its session token, and — for
+   * Google Pay — when that session can return a network token. Apple Pay stays
+   * on offer even where it cannot run, so its button can explain why.
+   */
+  const walletOffered = useCallback(
+    (wallet: WalletName) =>
+      findWalletToken(payment, wallet) != null &&
+      (wallet === 'apple_pay' || googlePayReady),
+    [googlePayReady, payment],
+  );
+
   // ---------------------------------------------------------------------------
   // Step 1 — create the intent when the player asks to deposit
   // ---------------------------------------------------------------------------
@@ -85,14 +97,21 @@ export function useDepositFlow() {
       const created = await createIntent();
       setPayment(created);
 
-      // The player's most recently used method leads, on both screens.
-      const top = defaultSelection(created.payment_method_list);
-      setDepositSelection(top);
-      setSheetSelection(top);
-
+      // Wallet availability is settled first: Google Pay is hidden when its
+      // session cannot produce a network token, so the screen must not start
+      // on it.
       const availability = await walletAvailability(created);
       setGooglePayReady(availability.googlePayReady);
       setApplePayReady(availability.applePayReady);
+
+      // The player's most recently used usable method leads, on both screens.
+      const top = defaultSelection(created.payment_method_list, wallet =>
+        // Apple Pay stays on offer everywhere: outside Safari its button
+        // explains itself rather than disappearing.
+        wallet === 'apple_pay' ? true : availability.googlePayReady,
+      );
+      setDepositSelection(top);
+      setSheetSelection(top);
 
       setScreen('deposit');
     } catch (e) {
@@ -324,7 +343,7 @@ export function useDepositFlow() {
       applePayReady,
       googlePayReady,
       publishableKey: payment?.publishable_key ?? '',
-      wallets: payment ? walletsWithTokens(payment) : [],
+      wallets: payment ? walletsWithTokens(payment).filter(walletOffered) : [],
       onWalletPress: (wallet: WalletName) => payWithWallet(wallet),
     },
   };
