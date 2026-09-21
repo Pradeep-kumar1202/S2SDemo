@@ -13,11 +13,13 @@ import { toCamelCaseKeys, toSnakeCaseKeys } from './keyCase';
  * 2. **Only Safari implements Apple Pay JS.** `window.ApplePaySession` does not
  *    exist in Chrome or Firefox, so the button is simply not offered there.
  *
- * What this demo does *not* have to do is validate the merchant itself: the
- * server already fetched a validated session (`delayed_session_token: false`),
- * so `session_token_data` is handed straight to `completeMerchantValidation`.
- * With a connector that returns `delayed_session_token: true`, the app would
- * instead call its own server on `onvalidatemerchant`.
+ * Like Google Pay, everything here comes from the session token: the request
+ * is built from `payment_request_data`, and the merchant is validated with
+ * `session_token_data` — the session the server already fetched — handed
+ * straight to `completeMerchantValidation`. This demo never validates the
+ * merchant itself, so a token without `session_token_data` (a delayed token, or
+ * a profile with no verified domain) leaves nothing to validate with, and Apple
+ * Pay is not offered at all. See `canPayWithApplePay`.
  */
 
 /** Thrown for a cancelled or failed sheet, mirroring the Google Pay path. */
@@ -41,6 +43,28 @@ export function isApplePayAvailable(): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether Apple Pay can actually run for this payment, in this browser.
+ *
+ * The button is offered only when all of these hold, because without any one
+ * of them the sheet can only fail:
+ *   - `session_token_data`, the validated merchant session to hand Apple;
+ *   - `payment_request_data`, to build the request from;
+ *   - a browser that runs Apple Pay JS with a card set up.
+ *
+ * The browser check cannot be dropped in favour of the token alone: the server
+ * fetches the token server to server, so it looks the same whichever browser
+ * the player is in. Only the browser can say it is Safari.
+ */
+export function canPayWithApplePay(
+  token: ApplePaySessionToken | undefined,
+): boolean {
+  const session = token?.session_token_data;
+  const hasMerchantSession =
+    session != null && typeof session === 'object' && Object.keys(session).length > 0;
+  return hasMerchantSession && token?.payment_request_data != null && isApplePayAvailable();
 }
 
 /**

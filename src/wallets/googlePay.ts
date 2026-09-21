@@ -6,14 +6,15 @@ import { toCamelCaseKeys, toSnakeCaseKeys } from './keyCase';
  *
  * The same shape as the native demo's wallet path, and for the same reason: the
  * app does not build the payment request, it hands Google the token Hyperswitch
- * minted. What comes back is a network token, which the merchant server
- * confirms — the browser never confirms the payment itself.
+ * minted. The one thing it changes is the auth methods: this demo takes network
+ * tokens only, so `allowed_payment_methods` is cut down to `CRYPTOGRAM_3DS` —
+ * see `networkTokenPaymentMethods`.
+ *
+ * What comes back goes to the merchant server, which confirms it — the browser
+ * never confirms the payment itself.
  */
 
 export type GooglePayEnvironment = 'TEST' | 'PRODUCTION';
-
-/** The auth method that yields a network token rather than a raw PAN. */
-const CRYPTOGRAM_3DS = 'CRYPTOGRAM_3DS';
 
 /** Sandbox publishable keys (pk_snd_) map to Google's TEST environment. */
 export const googlePayEnvironment = (
@@ -60,26 +61,37 @@ export async function paymentsClient(
   return client;
 }
 
-/**
- * Google Pay returns one of two things depending on the auth method the card
- * supports: a network token (`CRYPTOGRAM_3DS`) or the raw card number
- * (`PAN_ONLY`). This demo takes network tokens only, so:
- *
- *   - a session offering both is narrowed to `CRYPTOGRAM_3DS`, and
- *   - a session offering only `PAN_ONLY` leaves nothing usable, which is
- *     reported as "not available" so Google Pay is not offered at all.
- *
- * Returns the allowed payment methods with the auth methods narrowed, or null
- * when no method can produce a network token.
- */
-export function cryptogramOnlyPaymentMethods(
+/** The session's allowed payment methods in Google's shape, auth methods untouched. */
+export function allowedPaymentMethodsOf(
   token: GooglePaySessionToken,
-): Record<string, unknown>[] | null {
-  const methods = toCamelCaseKeys<Record<string, unknown>[]>(
+): Record<string, unknown>[] {
+  return toCamelCaseKeys<Record<string, unknown>[]>(
     token.allowed_payment_methods ?? [],
   );
+}
 
-  const narrowed = methods.flatMap(method => {
+/** The auth method that yields a network token rather than the card number. */
+const CRYPTOGRAM_3DS = 'CRYPTOGRAM_3DS';
+
+/**
+ * The session's payment methods, keeping network tokens only.
+ *
+ * Google Pay returns one of two things, depending on the auth method: a network
+ * token (`CRYPTOGRAM_3DS`) or the card number itself (`PAN_ONLY`). The profile
+ * may allow both; this demo takes network tokens only. So each method keeps
+ * `CRYPTOGRAM_3DS` and nothing else, and a method that allows only `PAN_ONLY`
+ * is dropped entirely.
+ *
+ * Both requests to Google are built from this, never from the unfiltered list.
+ * Asking `isReadyToPay` about PAN_ONLY and then opening a sheet that allows only
+ * CRYPTOGRAM_3DS is what produces "this merchant doesn't accept any of your
+ * available payment methods": the button appears, and the sheet then has nothing
+ * to offer.
+ */
+export function networkTokenPaymentMethods(
+  token: GooglePaySessionToken,
+): Record<string, unknown>[] {
+  return allowedPaymentMethodsOf(token).flatMap(method => {
     const parameters = (method.parameters ?? {}) as Record<string, unknown>;
     const authMethods = parameters.allowedAuthMethods;
     if (!Array.isArray(authMethods) || !authMethods.includes(CRYPTOGRAM_3DS)) {
@@ -92,13 +104,11 @@ export function cryptogramOnlyPaymentMethods(
       },
     ];
   });
-
-  return narrowed.length > 0 ? narrowed : null;
 }
 
-/** Whether this session can produce a network token at all. */
-export function supportsCryptogram3ds(token: GooglePaySessionToken): boolean {
-  return cryptogramOnlyPaymentMethods(token) != null;
+/** Whether the session allows a network token at all. PAN_ONLY alone does not. */
+export function supportsNetworkToken(token: GooglePaySessionToken): boolean {
+  return networkTokenPaymentMethods(token).length > 0;
 }
 
 /** Converts the Hyperswitch session token into Google's PaymentDataRequest. */
@@ -113,7 +123,7 @@ export function buildPaymentDataRequest(token: GooglePaySessionToken) {
   return {
     apiVersion: 2,
     apiVersionMinor: 0,
-    allowedPaymentMethods: cryptogramOnlyPaymentMethods(token) ?? [],
+    allowedPaymentMethods: networkTokenPaymentMethods(token),
     transactionInfo: transactionInfoFor(transaction_info),
     merchantInfo: toCamelCaseKeys(merchant_info),
     ...(email_required != null ? { emailRequired: email_required } : {}),
@@ -139,9 +149,15 @@ function transactionInfoFor(transactionInfo: GooglePaySessionToken['transaction_
   return info;
 }
 
-/** IsReadyToPayRequest = PaymentDataRequest minus tokenization details. */
+/**
+ * IsReadyToPayRequest = the network-token methods, minus tokenization
+ * details.
+ *
+ * It must ask with exactly what `buildPaymentDataRequest` will request; see
+ * `networkTokenPaymentMethods` for why a wider question here breaks the sheet.
+ */
 export function buildIsReadyToPayRequest(token: GooglePaySessionToken) {
-  const allowedPaymentMethods = (cryptogramOnlyPaymentMethods(token) ?? []).map(
+  const allowedPaymentMethods = networkTokenPaymentMethods(token).map(
     ({ tokenizationSpecification: _omit, ...method }) => method,
   );
   return { apiVersion: 2, apiVersionMinor: 0, allowedPaymentMethods };
@@ -151,8 +167,9 @@ export async function isReadyToPay(
   token: GooglePaySessionToken,
   environment: GooglePayEnvironment,
 ): Promise<boolean> {
-  // A PAN_ONLY-only session is treated as no Google Pay at all.
-  if (!supportsCryptogram3ds(token)) {
+  // A session that allows only PAN_ONLY has nothing this demo accepts, so there
+  // is no Google Pay to offer — and no reason to ask Google.
+  if (!supportsNetworkToken(token)) {
     return false;
   }
   try {
@@ -161,7 +178,10 @@ export async function isReadyToPay(
       buildIsReadyToPayRequest(token) as unknown as google.payments.api.IsReadyToPayRequest,
     );
     return Boolean(result.result);
-  } catch {
+  } catch (error) {
+    // Hiding the wallet on a thrown probe is right, but silence makes a
+    // misbuilt request (DEVELOPER_ERROR) look identical to "no cards here".
+    console.warn('Google Pay isReadyToPay failed', error);
     return false;
   }
 }

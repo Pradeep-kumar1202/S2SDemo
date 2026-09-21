@@ -6,6 +6,7 @@ import { CardCVCField, CardForm } from '@juspay-tech/react-hyper-js';
 import type { CreatePaymentResponse, CustomerPaymentMethod } from '../server/api';
 import { cardNetwork } from '../paymentMethods';
 import { CardSession } from './CardSession';
+import { ShimmerField } from './ShimmerField';
 import type { CardFormHandle } from './types';
 
 /**
@@ -25,6 +26,10 @@ export const SavedCardCvcField = forwardRef<
 >(function SavedCardCvcField({ payment, method, onError }, ref) {
   const options = useMemo(
     () => ({
+      // The SDK reads these from `options`; props of the same name are ignored.
+      placeholder: 'CVC',
+      // Matches the native demo: the card glyph eats most of a CVC box's width.
+      cvcIcon: 'hidden',
       savedCard: {
         paymentMethodToken: method.payment_token,
         paymentMethodData: { card: { cardNetwork: cardNetwork(method) } },
@@ -36,7 +41,11 @@ export const SavedCardCvcField = forwardRef<
   return (
     <CardSession payment={payment} onError={onError}>
       <CardForm ref={ref}>
-        <CardCVCField options={options} placeholder="CVC" />
+        <ShimmerField
+          render={onReady => (
+            <CardCVCField options={options} onReady={onReady} />
+          )}
+        />
       </CardForm>
     </CardSession>
   );

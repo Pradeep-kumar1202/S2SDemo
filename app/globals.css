@@ -18,13 +18,18 @@ body {
   margin: 0;
   background: #0a0f0c;
   color: var(--text);
-  font: 14px/1.4 system-ui, -apple-system, sans-serif;
+  font: 15px/1.45 system-ui, -apple-system, sans-serif;
   display: flex;
   justify-content: center;
   min-height: 100vh;
 }
 
-/* The demo is a phone flow, so it renders in a phone-width column. */
+/*
+ * The flow itself is a single column — it mirrors the native demo screen for
+ * screen. On a phone that fills the window; on a desktop, filling the window
+ * would leave one tall strip stranded in a black page, so past 640px the
+ * column becomes a deliberate centered card instead.
+ */
 .phone {
   width: 100%;
   max-width: 420px;
@@ -35,6 +40,33 @@ body {
      pushing the Deposit button off the bottom of the page. */
   height: 100vh;
   overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  body {
+    align-items: center;
+    padding: 32px 16px;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #12211a 0%, #0a0f0c 60%),
+      #0a0f0c;
+  }
+  .phone {
+    max-width: 480px;
+    /* Tall enough for the sheet's list, short enough that the deposit
+       screen's amount is not stranded in empty space. */
+    height: min(720px, calc(100vh - 64px));
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgb(0 0 0 / 55%);
+  }
+  .screen {
+    padding: 22px;
+    gap: 14px;
+  }
+  .screen-header h1 { font-size: 19px; }
+  .sheet-header h1 { font-size: 17px; }
+  .accordion { font-size: 14px; padding: 14px; }
+  .row-main { font-size: 14px; padding: 12px 14px; }
 }
 
 .screen {
@@ -77,13 +109,18 @@ button:disabled { opacity: 0.45; cursor: default; }
   padding: 8px;
 }
 
-.method-row { display: flex; gap: 8px; }
+/*
+ * Centred, not stretched: the CVC slot is a few pixels taller than the pill
+ * (its frame carries the SDK's own padding), so centring lands both visible
+ * boxes on the same line.
+ */
+.method-row { display: flex; gap: 8px; align-items: center; }
 .method-pill {
   flex: 1;
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 46px;
+  height: 48px;
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -92,7 +129,21 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 .method-label { flex: 1; text-align: left; }
 .chevron { color: var(--muted); }
-.cvc-pill { width: 96px; }
+/*
+ * The CVC slot on the deposit screen.
+ *
+ * No border, background or padding here on purpose: the SDK draws the input's
+ * whole box inside its iframe (see APPEARANCE in cards/CardSession.tsx), so
+ * anything drawn here nests a second box inside the first. This only reserves
+ * the width, and matches the method pill's height beside it.
+ */
+.cvc-pill {
+  width: 104px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  flex: none;
+}
 
 .amount { flex: 1; display: flex; align-items: center; justify-content: center; }
 .amount input {
@@ -192,7 +243,14 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 .radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--muted); display: inline-block; }
 .radio-on { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 47%); }
-.cvc-inline { width: 84px; }
+/* The same slot, inline at the end of a selected saved-card row. */
+.cvc-inline {
+  width: 96px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  flex: none;
+}
 .card-fields { padding: 0 12px 12px; }
 
 .field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
@@ -240,8 +298,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 
 /*
- * Safari draws this button itself from the -apple-pay-button appearance; the
- * rules are inert in every other browser, where the button is never mounted.
+ * Safari draws this button itself from the -apple-pay-button appearance. It is
+ * only ever mounted in Safari, where Apple Pay can run.
  */
 .apple-pay-button {
   width: 100%;
@@ -254,23 +312,57 @@ button:disabled { opacity: 0.45; cursor: default; }
   -apple-pay-button-style: white;
 }
 
-/* Shown where Safari's own button cannot be: a plain Apple Pay lookalike. */
-.apple-pay-fallback {
-  width: 100%;
-  height: 48px;
-  border: 0;
-  border-radius: 8px;
-  background: #000;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-}
-
 .visually-hidden {
   position: absolute; width: 1px; height: 1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/*
+ * Placeholder shown over a card field until its iframe reports `ready`.
+ *
+ * It overlays the field rather than replacing it — the field has to stay
+ * mounted and laid out to boot at all — so the slot is the positioning
+ * context and the shimmer covers it exactly.
+ */
+.field-slot {
+  position: relative;
+  width: 100%;
+}
+.shimmer {
+  position: absolute;
+  inset: 0;
+  /* Matches the SDK's own input box, so nothing shifts when it takes over. */
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    90deg,
+    var(--surface-alt) 25%,
+    var(--border) 37%,
+    var(--surface-alt) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+/* A looping gradient is exactly what this setting is asking us not to do. */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer { animation: none; }
+}
+
+/*
+ * The card field's iframe, given the 5px its own contents need.
+ *
+ * The SDK sizes the iframe from `inputFieldHeight` (48px here) but the document
+ * inside it comes out 5px taller: 4px from the SDK's own wrapper padding, and
+ * 1px from an analytics <img> it renders as a block element above the field.
+ * Raising `inputFieldHeight` raises the input with it, so the 5px gap never
+ * closes and the field scrolls inside itself. The frame is the only side of it
+ * this page can reach. The SDK writes the height inline, hence !important.
+ */
+.field-slot iframe {
+  height: 54px !important;
 }

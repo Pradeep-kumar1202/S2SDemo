@@ -1,4 +1,8 @@
-import type { CardFormHandle } from '../cards/types';
+import {
+  tokenizeError,
+  vaultTokenOf,
+  type CardFormHandle,
+} from '../cards/types';
 
 import type { ConfirmPaymentData, CustomerPaymentMethod } from '../server/api';
 import type { CollectOutcome } from './types';
@@ -47,14 +51,21 @@ export async function tokenizeCard(
 
   const result = await form.tokenize();
 
-  if (result.status !== 'success') {
-    // error.code is what to branch on (session_expired, validation_error, …);
-    // error.message is written for the player to read.
-    return { ok: false, message: `${result.error.code}: ${result.error.message}` };
+  // There is no `status` to check. A failure carries an `error` object; a
+  // success is the vault's own response, passed straight through.
+  const failure = tokenizeError(result);
+  if (failure) {
+    // code is what to branch on (session_expired, validation_error, …);
+    // message is written for the player to read.
+    return { ok: false, message: `${failure.code}: ${failure.message}` };
   }
 
-  // The vault's tokens are provider-shaped, so the value arrives untyped.
-  const vaultToken = String(result.data?.tokens?.payment_method_token ?? '');
+  // Succeeded, so the response carries the token the confirm needs. Missing it
+  // is not something the player can act on, but it must not be sent as "".
+  const vaultToken = vaultTokenOf(result);
+  if (!vaultToken) {
+    return { ok: false, message: 'The vault returned no token for this card.' };
+  }
 
   return {
     ok: true,

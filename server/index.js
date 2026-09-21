@@ -17,24 +17,24 @@
  * Configure via .env (see .env.example).
  */
 
-require('dotenv').config();
+require("dotenv").config();
 
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || "0.0.0.0";
 
 // Comma-separated list of allowed origins; "*" (default) allows all.
-const allowedOrigins = (process.env.CORS_ORIGIN || '*')
-  .split(',')
-  .map(origin => origin.trim())
+const allowedOrigins = (process.env.CORS_ORIGIN || "*")
+  .split(",")
+  .map((origin) => origin.trim())
   .filter(Boolean);
 
 app.use(
   cors({
-    origin: allowedOrigins.includes('*') ? true : allowedOrigins,
+    origin: allowedOrigins.includes("*") ? true : allowedOrigins,
     credentials: true,
   }),
 );
@@ -66,12 +66,12 @@ for (const [name, value] of Object.entries({
  * server-side calls, the publishable key for session tokens, and the base64
  * `authorization` blob for client data.
  */
-async function hsFetch(path, { method = 'GET', body, headers = {} } = {}) {
+async function hsFetch(path, { method = "GET", body, headers = {} } = {}) {
   const res = await fetch(`${HS_BASE_URL}${path}`, {
     method,
     headers: {
-      accept: 'application/json',
-      'Content-Type': 'application/json',
+      accept: "application/json",
+      "Content-Type": "application/json",
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -88,7 +88,7 @@ async function hsFetch(path, { method = 'GET', body, headers = {} } = {}) {
 
 /** Server-to-server call with the secret key. */
 const hsSecret = (path, options = {}) =>
-  hsFetch(path, { ...options, headers: { 'api-key': HS_API_KEY } });
+  hsFetch(path, { ...options, headers: { "api-key": HS_API_KEY } });
 
 /**
  * The payment method list the SDK renders: enabled methods, the customer's
@@ -106,8 +106,8 @@ function fetchPaymentMethodList(payment) {
       `client_secret=${payment.client_secret}`,
       `customer_id=${payment.customer_id}`,
       `payment_id=${payment.payment_id}`,
-    ].join(','),
-  ).toString('base64');
+    ].join(","),
+  ).toString("base64");
 
   return hsFetch(`/payments/${payment.payment_id}/client`, {
     headers: { authorization },
@@ -116,9 +116,9 @@ function fetchPaymentMethodList(payment) {
 
 /** Wallet session tokens + vault details, fetched with the publishable key. */
 function fetchSessionTokens(payment, wallets = []) {
-  return hsFetch('/payments/session_tokens', {
-    method: 'POST',
-    headers: { 'api-key': HS_PUBLISHABLE_KEY },
+  return hsFetch("/payments/session_tokens", {
+    method: "POST",
+    headers: { "api-key": HS_PUBLISHABLE_KEY },
     body: {
       payment_id: payment.payment_id,
       client_secret: payment.client_secret,
@@ -191,7 +191,7 @@ async function syncPaymentStatus(paymentId) {
  */
 async function capturePayment(paymentId) {
   return hsSecret(`/payments/${encodeURIComponent(paymentId)}/capture`, {
-    method: 'POST',
+    method: "POST",
     body: {},
   });
 }
@@ -211,25 +211,42 @@ async function capturePayment(paymentId) {
  * everything the SDK needs to render: enabled methods, the player's saved
  * cards, wallet session tokens and the vault authorization.
  */
-app.get('/api/create-payment', async (req, res, next) => {
+app.get("/api/create-payment", async (req, res, next) => {
   if (!HS_API_KEY) {
     return res
       .status(500)
-      .json({ error: 'HYPERSWITCH_API_KEY is not configured' });
+      .json({ error: "HYPERSWITCH_API_KEY is not configured" });
   }
 
   const amount = 0;
-  const currency = 'USD';
+  const currency = "USD";
   const profile_id = process.env.HYPERSWITCH_PROFILE_ID;
 
   try {
-    const { status, data } = await hsSecret('/payments', {
-      method: 'POST',
+    const { status, data } = await hsSecret("/payments", {
+      method: "POST",
       body: {
-        amount, 
-        currency, 
-        profile_id, 
-        customer_id: "hyperswitch_sdk_demo_id", 
+        amount,
+        currency,
+        profile_id,
+        customer_id: "hyperswitch_sdk_demo_id",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
+          },
+        },
         // routing: {
         //   "type": "single",
         //   "data": {
@@ -261,22 +278,22 @@ app.get('/api/create-payment', async (req, res, next) => {
  * right price and the vault session belongs to the right amount. Returns the
  * same shape as create: the SDK swaps its whole payment object for it.
  */
-app.post('/api/update-payment', async (req, res, next) => {
+app.post("/api/update-payment", async (req, res, next) => {
   if (!HS_API_KEY) {
     return res
       .status(500)
-      .json({ error: 'HYPERSWITCH_API_KEY is not configured' });
+      .json({ error: "HYPERSWITCH_API_KEY is not configured" });
   }
 
   const { payment_id: paymentId, amount } = req.body || {};
   if (!paymentId) {
-    return res.status(400).json({ error: 'payment_id is required' });
+    return res.status(400).json({ error: "payment_id is required" });
   }
 
   try {
     const { status, data } = await hsSecret(
       `/payments/${encodeURIComponent(paymentId)}`,
-      { method: 'POST', body: { amount } },
+      { method: "POST", body: { amount } },
     );
     if (status >= 400) {
       return res.status(status).json(data);
@@ -302,32 +319,32 @@ app.post('/api/update-payment', async (req, res, next) => {
  * wallets — never card data. Confirm needs the secret key, which is why it
  * happens here and not in the app.
  */
-app.post('/api/confirm-payment', async (req, res, next) => {
+app.post("/api/confirm-payment", async (req, res, next) => {
   if (!HS_API_KEY) {
     return res
       .status(500)
-      .json({ error: 'HYPERSWITCH_API_KEY is not configured' });
+      .json({ error: "HYPERSWITCH_API_KEY is not configured" });
   }
 
   const { payment_id: paymentId, ...body } = req.body || {};
   if (!paymentId) {
-    return res.status(400).json({ error: 'payment_id is required' });
+    return res.status(400).json({ error: "payment_id is required" });
   }
 
   try {
     // The two checks a real deposit passes before any money moves.
     const authorization = await authorizeWithPam({ payment_id: paymentId });
     if (!authorization.approved) {
-      return res.status(402).json({ error: 'Declined by PAM' });
+      return res.status(402).json({ error: "Declined by PAM" });
     }
     const screening = await screenForFraud({ payment_id: paymentId });
     if (!screening.approved) {
-      return res.status(402).json({ error: 'Declined by fraud screening' });
+      return res.status(402).json({ error: "Declined by fraud screening" });
     }
 
     const { status, data } = await hsSecret(
       `/payments/${encodeURIComponent(paymentId)}/confirm`,
-      { method: 'POST', body },
+      { method: "POST", body },
     );
 
     // Step 5 lives here in a real integration: if `data.next_action` is set the
@@ -349,7 +366,7 @@ app.post('/api/confirm-payment', async (req, res, next) => {
  * app does not call this yet — it reports the confirm response and stops — so
  * this route is here to show where the sync belongs.
  */
-app.get('/api/payments/:id', async (req, res, next) => {
+app.get("/api/payments/:id", async (req, res, next) => {
   try {
     const { status, data } = await syncPaymentStatus(req.params.id);
     res.status(status).json(data);
@@ -366,10 +383,10 @@ app.get('/api/payments/:id', async (req, res, next) => {
  * Only for merchants who authorize now and capture later. Unused by this demo,
  * whose payments capture automatically.
  */
-app.post('/api/capture-payment', async (req, res, next) => {
+app.post("/api/capture-payment", async (req, res, next) => {
   const { payment_id: paymentId } = req.body || {};
   if (!paymentId) {
-    return res.status(400).json({ error: 'payment_id is required' });
+    return res.status(400).json({ error: "payment_id is required" });
   }
   try {
     const { status, data } = await capturePayment(paymentId);
@@ -381,7 +398,7 @@ app.post('/api/capture-payment', async (req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Not Found', path: req.originalUrl });
+  res.status(404).json({ error: "Not Found", path: req.originalUrl });
 });
 
 // Error handler
@@ -389,19 +406,19 @@ app.use((err, _req, res, _next) => {
   console.error(err);
   res
     .status(err.status || 500)
-    .json({ error: err.message || 'Internal Server Error' });
+    .json({ error: err.message || "Internal Server Error" });
 });
 
 app
   .listen(PORT, HOST, () => {
     console.log(`Mock server listening on http://${HOST}:${PORT}`);
   })
-  .on('error', err => {
-    if (err.code === 'EADDRINUSE') {
+  .on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
       console.log(`❌ Port ${PORT} is already in use!`);
       process.exit(1);
     } else {
-      console.log('Server error:', err);
+      console.log("Server error:", err);
       process.exit(1);
     }
   });

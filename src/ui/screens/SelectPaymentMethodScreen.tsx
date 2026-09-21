@@ -36,7 +36,6 @@ type Props = {
   canDeposit: boolean;
   busy: boolean;
   error?: string | null;
-  applePayReady: boolean;
   googlePayReady: boolean;
   publishableKey: string;
   wallets: WalletName[];
@@ -57,7 +56,6 @@ export function SelectPaymentMethodScreen({
   canDeposit,
   busy,
   error,
-  applePayReady,
   googlePayReady,
   publishableKey,
   wallets,
@@ -100,12 +98,6 @@ export function SelectPaymentMethodScreen({
             onPress={() => onWalletPress('apple_pay')}
             disabled={busy}
           />
-        ) : null}
-        {walletButtons.includes('apple_pay') && !applePayReady ? (
-          <p className="hint">
-            Apple Pay needs Safari, and a merchant session issued for this
-            domain.
-          </p>
         ) : null}
 
         {savedMethods.length > 0 ? (
@@ -245,7 +237,7 @@ export function SelectPaymentMethodScreen({
           />
         ) : (
           <button className="primary" onClick={onDeposit} disabled={!canDeposit || busy}>
-            {busy ? 'Working…' : `Deposit ${formatAmount(amount)}`}
+            {busy ? 'Processing…' : `Deposit ${formatAmount(amount)}`}
           </button>
         )}
         <p className="muted small center">🔒 Your deposit is secure and encrypted</p>

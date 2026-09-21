@@ -122,14 +122,18 @@ be the only field in its form.
 **Wallets** — `src/flow/payWithWallet.ts`, with one module per wallet.
 
 *Google Pay* (`src/wallets/googlePay.ts`) loads Google's `pay.js`, builds the
-`PaymentDataRequest` from the session token and opens the sheet. The network
+`PaymentDataRequest` from the session token and opens the sheet. Only network
+tokens are accepted: the session's auth methods are cut to `CRYPTOGRAM_3DS`, and a
+session that allows only `PAN_ONLY` means Google Pay is not offered. The network
 token it returns is confirmed by the server, so the browser never confirms the
 payment itself.
 
 *Apple Pay* (`src/wallets/applePay.ts`) opens an `ApplePaySession` from the
 token's `payment_request_data`. Because the server fetched a validated merchant
 session (`delayed_session_token: false`), `onvalidatemerchant` hands
-`session_token_data` straight back to Apple — no round trip of its own.
+`session_token_data` straight back to Apple — no round trip of its own. A token
+without `session_token_data` leaves nothing to validate with, so Apple Pay is
+not offered at all.
 
 Two constraints on Apple Pay are Apple's and cannot be worked around:
 

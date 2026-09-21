@@ -117,7 +117,7 @@ export function DepositScreen({
         <ApplePayButton onPress={onDeposit} disabled={busy || !canDeposit} />
       ) : (
         <button className="primary" onClick={onDeposit} disabled={!canDeposit || busy}>
-          {busy ? 'Working…' : 'Deposit'}
+          {busy ? 'Processing…' : 'Deposit'}
         </button>
       )}
     </section>

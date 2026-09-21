@@ -74,15 +74,15 @@ export function useDepositFlow() {
   const value = amountValue(amount);
 
   /**
-   * A wallet is offered when the payment carries its session token, and — for
-   * Google Pay — when that session can return a network token. Apple Pay stays
-   * on offer even where it cannot run, so its button can explain why.
+   * A wallet is offered when the payment carries its session token and it can
+   * actually run here — the same rule for both. A wallet that cannot run is not
+   * shown at all rather than shown and left to fail.
    */
   const walletOffered = useCallback(
     (wallet: WalletName) =>
       findWalletToken(payment, wallet) != null &&
-      (wallet === 'apple_pay' || googlePayReady),
-    [googlePayReady, payment],
+      (wallet === 'apple_pay' ? applePayReady : googlePayReady),
+    [applePayReady, googlePayReady, payment],
   );
 
   // ---------------------------------------------------------------------------
@@ -97,18 +97,18 @@ export function useDepositFlow() {
       const created = await createIntent();
       setPayment(created);
 
-      // Wallet availability is settled first: Google Pay is hidden when its
-      // session cannot produce a network token, so the screen must not start
-      // on it.
+      // Wallet availability is settled first: a wallet that cannot run here is
+      // hidden — Google Pay included, when its session allows only PAN_ONLY —
+      // so the screen must not start on it.
       const availability = await walletAvailability(created);
       setGooglePayReady(availability.googlePayReady);
       setApplePayReady(availability.applePayReady);
 
       // The player's most recently used usable method leads, on both screens.
       const top = defaultSelection(created.payment_method_list, wallet =>
-        // Apple Pay stays on offer everywhere: outside Safari its button
-        // explains itself rather than disappearing.
-        wallet === 'apple_pay' ? true : availability.googlePayReady,
+        wallet === 'apple_pay'
+          ? availability.applePayReady
+          : availability.googlePayReady,
       );
       setDepositSelection(top);
       setSheetSelection(top);
@@ -340,7 +340,6 @@ export function useDepositFlow() {
       canDeposit,
       busy,
       error,
-      applePayReady,
       googlePayReady,
       publishableKey: payment?.publishable_key ?? '',
       wallets: payment ? walletsWithTokens(payment).filter(walletOffered) : [],

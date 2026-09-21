@@ -20,11 +20,18 @@ declare module '@juspay-tech/react-hyper-js' {
     children?: ReactNode;
   }>;
 
+  /**
+   * Note there is no `placeholder` prop. The SDK reads `placeholder` (and
+   * `cvcIcon`) from `options` and ignores same-named props entirely, so one
+   * passed here would silently do nothing and the field would keep the SDK's
+   * own default text.
+   */
   type FieldProps = {
     options?: Record<string, unknown>;
-    placeholder?: string;
     className?: string;
-    onChange?: (event: unknown) => void;
+    onChange?: (event: CardFormChange) => void;
+    /** Fired once the field's iframe has booted and drawn its input. */
+    onReady?: (event?: unknown) => void;
   };
 
   export const CardNumberField: ComponentType<FieldProps>;

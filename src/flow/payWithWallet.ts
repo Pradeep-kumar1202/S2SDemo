@@ -2,7 +2,7 @@ import type { CreatePaymentResponse } from '../server/api';
 import { findWalletToken, type WalletName } from '../paymentMethods';
 import {
   ApplePayError,
-  isApplePayAvailable,
+  canPayWithApplePay,
   payWithApplePay,
 } from '../wallets/applePay';
 import {
@@ -27,11 +27,11 @@ import type { CollectOutcome } from './types';
  * which confirms it — the browser never confirms the payment itself, so the
  * authorization and fraud checks stay in front of every payment.
  *
- * Apple Pay works the same way, with one constraint that is Apple's and cannot
- * be worked around: the merchant session is issued for a specific, verified
- * domain (`session_token_data.domainName`), and Safari refuses to start a
- * session anywhere else. Served from localhost, the button appears in Safari
- * and the sheet fails validation. See `src/wallets/applePay.ts`.
+ * Apple Pay works the same way, and is offered only when the token carries a
+ * validated merchant session and the browser is Safari. One constraint is
+ * Apple's and cannot be worked around: that session is issued for a specific,
+ * verified domain (`session_token_data.domainName`), and Safari refuses to
+ * start it anywhere else. See `src/wallets/applePay.ts`.
  */
 
 /** Whether each wallet can be used right now: a token, and a device that can pay. */
@@ -47,8 +47,7 @@ export async function walletAvailability(payment: CreatePaymentResponse): Promis
       )
     : false;
 
-  const applePayToken = findWalletToken(payment, 'apple_pay');
-  const applePayReady = applePayToken != null && isApplePayAvailable();
+  const applePayReady = canPayWithApplePay(findWalletToken(payment, 'apple_pay'));
 
   return { googlePayReady, applePayReady };
 }
