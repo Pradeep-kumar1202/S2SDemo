@@ -18,6 +18,7 @@ import {
 import { confirmDeposit } from './confirmDeposit';
 import { createIntent } from './createIntent';
 import {
+  collectApplePayWhileUpdating,
   collectWalletPayment,
   walletAvailability,
   walletsWithTokens,
@@ -217,6 +218,28 @@ export function useDepositFlow() {
    */
   const deposit = useCallback(async () => {
     const selected = screen === 'methods' ? sheetSelection : depositSelection;
+
+    // Apple Pay here cannot wait for the amount update: Safari only allows its
+    // session to be created during the tap, and there must be no await ahead of
+    // it. So the update starts alongside the sheet, and Apple's merchant
+    // validation waits for it instead — see collectApplePayWhileUpdating.
+    if (
+      screen === 'deposit' &&
+      payment &&
+      selected?.kind === 'wallet' &&
+      selected.wallet === 'apple_pay'
+    ) {
+      const updated = updateIntent(payment, value).then(refreshed => {
+        setPayment(refreshed);
+        return refreshed;
+      });
+      // Confirm reads only payment_id, which the update does not change.
+      return confirmWith(
+        () => collectApplePayWhileUpdating(payment, value, updated),
+        payment,
+      );
+    }
+
     const refreshed = screen === 'deposit' ? await pushAmount() : payment;
     const current = refreshed ?? payment;
     if (!current || !selected) {
@@ -268,6 +291,7 @@ export function useDepositFlow() {
     pushAmount,
     screen,
     sheetSelection,
+    value,
   ]);
 
   // ---------------------------------------------------------------------------

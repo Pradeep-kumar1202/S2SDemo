@@ -1,5 +1,8 @@
-import type { ApplePaySessionToken, WalletPaymentMethodData } from '../server/api';
-import { toCamelCaseKeys, toSnakeCaseKeys } from './keyCase';
+import type {
+  ApplePaySessionToken,
+  WalletPaymentMethodData,
+} from "../server/api";
+import { toCamelCaseKeys, toSnakeCaseKeys } from "./keyCase";
 
 /**
  * Apple Pay on the web.
@@ -25,7 +28,7 @@ import { toCamelCaseKeys, toSnakeCaseKeys } from './keyCase';
 /** Thrown for a cancelled or failed sheet, mirroring the Google Pay path. */
 export class ApplePayError extends Error {
   constructor(
-    public code: 'cancelled' | 'failed' | 'unavailable',
+    public code: "cancelled" | "failed" | "unavailable",
     message: string,
   ) {
     super(message);
@@ -36,8 +39,8 @@ export class ApplePayError extends Error {
 export function isApplePayAvailable(): boolean {
   try {
     return (
-      typeof window !== 'undefined' &&
-      typeof window.ApplePaySession !== 'undefined' &&
+      typeof window !== "undefined" &&
+      typeof window.ApplePaySession !== "undefined" &&
       window.ApplePaySession.canMakePayments()
     );
   } catch {
@@ -63,8 +66,14 @@ export function canPayWithApplePay(
 ): boolean {
   const session = token?.session_token_data;
   const hasMerchantSession =
-    session != null && typeof session === 'object' && Object.keys(session).length > 0;
-  return hasMerchantSession && token?.payment_request_data != null && isApplePayAvailable();
+    session != null &&
+    typeof session === "object" &&
+    Object.keys(session).length > 0;
+  return (
+    hasMerchantSession &&
+    token?.payment_request_data != null &&
+    isApplePayAvailable()
+  );
 }
 
 /**
@@ -72,51 +81,90 @@ export function canPayWithApplePay(
  *
  * `merchant_identifier` is dropped: it belongs to the merchant session, not to
  * the request, and Apple rejects requests carrying unknown keys.
+ *
+ * `amount` overrides the token's total, for when the player's amount has moved
+ * on and the token minted for it is still on its way.
  */
-export function buildPaymentRequest(token: ApplePaySessionToken) {
+export function buildPaymentRequest(
+  token: ApplePaySessionToken,
+  amount?: string,
+) {
   const data = token.payment_request_data;
   if (!data) {
-    throw new ApplePayError('failed', 'This payment has no Apple Pay request data');
+    throw new ApplePayError(
+      "failed",
+      "This payment has no Apple Pay request data",
+    );
   }
   const { merchant_identifier: _merchantIdentifier, ...request } = data;
-  return toCamelCaseKeys<ApplePayJS.ApplePayPaymentRequest>(request);
+  const total =
+    amount === undefined ? request.total : { ...request.total, amount };
+  return toCamelCaseKeys<ApplePayJS.ApplePayPaymentRequest>({
+    ...request,
+    total,
+  });
 }
 
 /**
  * Presents the Apple Pay sheet and returns the confirm body for the card the
  * player authorised.
+ *
+ * `merchantSession` is what `onvalidatemerchant` hands Apple. By default it is
+ * the token's own `session_token_data`; a caller whose token is being replaced
+ * passes a promise of the new one instead. Apple only asks for it once the
+ * sheet is already open, so it is free to still be in flight when this starts.
  */
 export function payWithApplePay(
   token: ApplePaySessionToken,
+  {
+    amount,
+    merchantSession = Promise.resolve(token.session_token_data),
+  }: { amount?: string; merchantSession?: Promise<unknown> } = {},
 ): Promise<WalletPaymentMethodData> {
   if (!isApplePayAvailable()) {
     return Promise.reject(
-      new ApplePayError('unavailable', 'Apple Pay is only available in Safari'),
+      new ApplePayError("unavailable", "Apple Pay is only available in Safari"),
     );
   }
 
-  const session = new window.ApplePaySession!(3, buildPaymentRequest(token));
+  // Created here, synchronously, and on no account after an await: Safari only
+  // allows an ApplePaySession to be made while it is handling the tap itself.
+  const session = new window.ApplePaySession!(
+    3,
+    buildPaymentRequest(token, amount),
+  );
 
   return new Promise<WalletPaymentMethodData>((resolve, reject) => {
-    // The server already validated the merchant, so the session it fetched is
-    // handed back to Apple as-is.
-    session.onvalidatemerchant = () => {
-      const merchantSession = token.session_token_data;
-      if (!merchantSession) {
+    // The server validates the merchant, never this page, so the session it
+    // fetched is handed back to Apple as-is — once it has arrived.
+    session.onvalidatemerchant = async () => {
+      try {
+        const validated = await merchantSession;
+        if (!validated) {
+          throw new ApplePayError("failed", "No validated merchant session");
+        }
+        session.completeMerchantValidation(validated);
+      } catch (error) {
+        // Record the real reason before ending the session: abort() can raise a
+        // cancel of its own, and only the first outcome counts. abort() rather
+        // than rethrowing, because a throw here tells Apple nothing — the sheet
+        // would wait on validation until Safari times it out.
+        reject(
+          error instanceof ApplePayError
+            ? error
+            : new ApplePayError("failed", messageOf(error)),
+        );
         session.abort();
-        reject(new ApplePayError('failed', 'No validated merchant session'));
-        return;
       }
-      session.completeMerchantValidation(merchantSession);
     };
 
-    session.onpaymentauthorized = event => {
+    session.onpaymentauthorized = (event) => {
       session.completePayment(window.ApplePaySession!.STATUS_SUCCESS);
       resolve(confirmBodyFor(event.payment));
     };
 
-    session.oncancel = () => {
-      reject(new ApplePayError('cancelled', 'Payment cancelled'));
+    session.oncancel = (error) => {
+      reject(new ApplePayError("cancelled", "Payment cancelled"));
     };
 
     session.begin();
@@ -129,12 +177,14 @@ export function payWithApplePay(
  * `paymentData` is the encrypted payload Apple returns; Hyperswitch takes it
  * base64-encoded, which is what the web checkout SDK sends too.
  */
-function confirmBodyFor(payment: ApplePayJS.ApplePayPayment): WalletPaymentMethodData {
+function confirmBodyFor(
+  payment: ApplePayJS.ApplePayPayment,
+): WalletPaymentMethodData {
   const { paymentData, paymentMethod, transactionIdentifier } = payment.token;
 
   return {
-    payment_method: 'wallet',
-    payment_method_type: 'apple_pay',
+    payment_method: "wallet",
+    payment_method_type: "apple_pay",
     payment_method_data: {
       wallet: {
         apple_pay: {
@@ -146,3 +196,6 @@ function confirmBodyFor(payment: ApplePayJS.ApplePayPayment): WalletPaymentMetho
     },
   };
 }
+
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);

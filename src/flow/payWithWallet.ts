@@ -12,6 +12,7 @@ import {
   payWithGooglePay,
 } from '../wallets/googlePay';
 import type { CollectOutcome } from './types';
+import { toMinorUnits } from './updateIntent';
 
 /**
  * Step 3b — the player pays with a wallet.
@@ -88,15 +89,84 @@ export async function collectWalletPayment(
       ),
     };
   } catch (error) {
-    if (
-      (error instanceof GooglePayError || error instanceof ApplePayError) &&
-      error.code === 'cancelled'
-    ) {
-      return { ok: false, message: 'Payment cancelled' };
+    return walletFailure(error);
+  }
+}
+
+/**
+ * Apple Pay from the deposit screen, where the player's amount is not on the
+ * intent yet.
+ *
+ * The update cannot simply run first: Safari only allows an ApplePaySession to
+ * be created while it is handling the tap, and awaiting a network call loses
+ * that. So both start from the tap together:
+ *
+ *   - the sheet opens at once, showing the amount the update is sending;
+ *   - Apple then asks for the merchant session (`onvalidatemerchant`), and that
+ *     waits for the update and uses the session token it returned — the one
+ *     minted for the new amount.
+ *
+ * If the update fails there is no merchant session to give, so validation is
+ * aborted and the sheet closes before anything is authorised. Confirm can only
+ * follow authorisation, and authorisation only follows validation, so the
+ * payment is never confirmed ahead of its own amount.
+ */
+export async function collectApplePayWhileUpdating(
+  payment: CreatePaymentResponse,
+  amount: number,
+  updated: Promise<CreatePaymentResponse>,
+): Promise<CollectOutcome> {
+  const merchantSession = updated.then(
+    refreshed => {
+      const session = findWalletToken(refreshed, 'apple_pay')?.session_token_data;
+      if (!session) {
+        throw new ApplePayError(
+          'failed',
+          'The updated payment carried no Apple Pay merchant session.',
+        );
+      }
+      return session;
+    },
+    error => {
+      throw new ApplePayError(
+        'failed',
+        `Could not update the payment: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    },
+  );
+  // Handled for real in onvalidatemerchant; this only stops a failure that
+  // arrives when nothing is waiting for it from surfacing as unhandled.
+  merchantSession.catch(() => {});
+
+  try {
+    const token = findWalletToken(payment, 'apple_pay');
+    if (!token) {
+      return { ok: false, message: 'No apple_pay session token for this payment.' };
     }
     return {
-      ok: false,
-      message: error instanceof Error ? error.message : String(error),
+      ok: true,
+      body: await payWithApplePay(token, {
+        // The exact amount the update sends, so the sheet cannot round
+        // differently from what the intent will hold.
+        amount: (toMinorUnits(amount) / 100).toFixed(2),
+        merchantSession,
+      }),
     };
+  } catch (error) {
+    return walletFailure(error);
   }
+}
+
+/** A cancelled sheet is an outcome, not an error; anything else reports why. */
+function walletFailure(error: unknown): CollectOutcome {
+  if (
+    (error instanceof GooglePayError || error instanceof ApplePayError) &&
+    error.code === 'cancelled'
+  ) {
+    return { ok: false, message: 'Payment cancelled' };
+  }
+  return {
+    ok: false,
+    message: error instanceof Error ? error.message : String(error),
+  };
 }
