@@ -62,9 +62,12 @@ for (const [name, value] of Object.entries({
 
 /**
  * Calls Hyperswitch and returns { status, data } with the body parsed when
- * possible. Each caller passes its own auth header: the secret api-key for
- * server-side calls, the publishable key for session tokens, and the base64
- * `authorization` blob for client data.
+ * possible.
+ *
+ * `X-Integration-Type: server` is what makes this a one-call integration: with
+ * it, create and update return the payment method list, the wallet session
+ * tokens and `sdk_authorization` inline, so the server needs no follow-up calls
+ * to /payments/{id}/client or /payments/session_tokens.
  */
 async function hsFetch(path, { method = "GET", body, headers = {} } = {}) {
   const res = await fetch(`${HS_BASE_URL}${path}`, {
@@ -72,6 +75,7 @@ async function hsFetch(path, { method = "GET", body, headers = {} } = {}) {
     headers: {
       accept: "application/json",
       "Content-Type": "application/json",
+      "X-Integration-Type": "server",
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -98,58 +102,55 @@ const hsSecret = (path, options = {}) =>
     },
   });
 
+
 /**
- * The payment method list the SDK renders: enabled methods, the customer's
- * saved methods and the intent data. Authenticated with a base64 "k=v,k=v" blob
- * rather than a key.
+ * Step 0 — the player becomes a customer.
  *
- * Until `X-Integration-Type: server` returns this inline on create, it is
- * fetched here with a second call.
+ *   Server          -> Payments API    : /v1/customers
+ *
+ * Saved cards hang off a customer, so the player must be one before an intent
+ * is created for them. The player's own id is sent as `merchant_reference_id`
+ * and is what every later call uses as `customer_id` — the API's own
+ * `0a_cus_…` id is never needed here, and is in fact rejected by /payments.
+ *
+ * Two things about this endpoint are unlike the rest of the API, and both are
+ * why it does not go through hsFetch: it is under "/v1" where the payments
+ * calls are not, and it authenticates with "Authorization: api-key=…" rather
+ * than the "api-key" header.
+ *
+ * Safe to call on every deposit: a player who already exists answers IR_12,
+ * which is success as far as this flow is concerned.
  */
-function fetchPaymentMethodList(payment) {
-  const authorization = Buffer.from(
-    [
-      `profile_id=${payment.profile_id || HS_PROFILE_ID}`,
-      `publishable_key=${HS_PUBLISHABLE_KEY}`,
-      `client_secret=${payment.client_secret}`,
-      `customer_id=${payment.customer_id}`,
-      `payment_id=${payment.payment_id}`,
-    ].join(","),
-  ).toString("base64");
-
-  return hsFetch(`/payments/${payment.payment_id}/client`, {
-    headers: { authorization },
-  });
-}
-
-/** Wallet session tokens + vault details, fetched with the publishable key. */
-function fetchSessionTokens(payment, wallets = []) {
-  return hsFetch("/payments/session_tokens", {
+async function ensureCustomer(playerId) {
+  const res = await fetch(`${HS_BASE_URL}/v1/customers`, {
     method: "POST",
     headers: {
-      "api-key": HS_PUBLISHABLE_KEY,
-      "x-merchant-domain": "s2s-web-demo.pages.dev",
-      "x-browser-name": "Safari",
-      "x-client-platform": "web",
+      "Content-Type": "application/json",
+      Authorization: `api-key=${HS_API_KEY}`,
+      "X-Profile-Id": HS_PROFILE_ID,
     },
-    body: {
-      payment_id: payment.payment_id,
-      client_secret: payment.client_secret,
-      wallets,
-    },
+    body: JSON.stringify({
+      email: "guest@example.com",
+      name: "John Doe",
+      merchant_reference_id: playerId,
+    }),
   });
-}
 
-/** Both of the above, in parallel, for a payment that was just created or updated. */
-async function fetchSdkData(payment) {
-  const [list, tokens] = await Promise.all([
-    fetchPaymentMethodList(payment),
-    fetchSessionTokens(payment),
-  ]);
-  return {
-    payment_method_list: list.data,
-    session_tokens: tokens.data,
-  };
+  const data = await res.json().catch(() => null);
+  if (res.ok) {
+    return { created: true, customer: data };
+  }
+  if (data?.error?.code === "IR_12") {
+    return { created: false, customer: null };
+  }
+
+  // A failure here is not fatal: the player may already be a customer from an
+  // earlier run, and the payment below uses their id either way.
+  console.warn(
+    `Warning: could not create customer ${playerId}:`,
+    data?.error?.message ?? res.status,
+  );
+  return { created: false, customer: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -233,16 +234,18 @@ app.get("/api/create-payment", async (req, res, next) => {
 
   const amount = 0;
   const currency = "USD";
-  const profile_id = process.env.HYPERSWITCH_PROFILE_ID;
 
   try {
+    const player_id = 'player_demo_001';
+    await ensureCustomer(player_id);
+
     const { status, data } = await hsSecret("/payments", {
       method: "POST",
       body: {
         amount,
         currency,
-        profile_id,
-        customer_id: "1790669356",
+        profile_id: HS_PROFILE_ID,
+        customer_id: player_id,
         billing: {
           address: {
             line1: "1467",
@@ -274,7 +277,6 @@ app.get("/api/create-payment", async (req, res, next) => {
     res.status(status).json({
       ...data,
       publishable_key: HS_PUBLISHABLE_KEY,
-      ...(await fetchSdkData(data)),
     });
   } catch (err) {
     next(err);
@@ -314,7 +316,6 @@ app.post("/api/update-payment", async (req, res, next) => {
     res.status(status).json({
       ...data,
       publishable_key: HS_PUBLISHABLE_KEY,
-      ...(await fetchSdkData(data)),
     });
   } catch (err) {
     next(err);

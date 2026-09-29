@@ -163,7 +163,7 @@ export function payWithApplePay(
       resolve(confirmBodyFor(event.payment));
     };
 
-    session.oncancel = (error) => {
+    session.oncancel = () => {
       reject(new ApplePayError("cancelled", "Payment cancelled"));
     };
 

@@ -8,7 +8,14 @@ declare module '@juspay-tech/react-hyper-js' {
 
   export const HyperPaymentMethodSession: ComponentType<{
     hyper: unknown;
-    options: { sdkAuthorization: string; appearance?: Record<string, unknown> };
+    options: {
+      /** Either names the vault outright… */
+      vaultDetails?: { vaultType: string; vaultData: Record<string, unknown> };
+      /** …or hands over the authorization and lets the SDK look it up. */
+      sdkAuthorization?: string;
+      appearance?: Record<string, unknown>;
+      locale?: string;
+    };
     onError?: (error: unknown) => void;
     children: ReactNode;
   }>;

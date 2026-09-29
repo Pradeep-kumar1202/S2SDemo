@@ -69,6 +69,32 @@ src/
 
 ## The flow, arrow by arrow
 
+### Step 0 — The player becomes a customer
+
+```
+Server        -> Payments API  : POST /v1/customers
+Server        <- Payments API  : customer (id + merchant_reference_id)
+```
+
+`ensureCustomer()` in `server/index.js`. Saved cards hang off a customer, so the
+player has to be one before an intent can name them. The player's own id goes in
+as `merchant_reference_id`, and that is what every later call uses as
+`customer_id` — the API's `0a_cus_…` id is never needed, and `/payments` rejects
+it with `IR_06`.
+
+The player is written into the two requests that need them — `player_demo_001`
+with an email and name; a real integration takes them from whoever is signed in.
+
+Two things about this endpoint are unlike the rest of the API, and both are why
+it does not go through `hsFetch`:
+
+- it is under `/v1` on the same host, where the payments calls are not, and
+- it authenticates with `Authorization: api-key=…`, not the `api-key` header.
+
+The call runs on every deposit: a player who already exists answers `IR_12`,
+which this treats as success. Any other failure is logged and the flow
+continues, since the payment names the player by id either way.
+
 ### Step 1 — Player reaches the lobby
 
 ```
@@ -83,11 +109,16 @@ App           <- Server        : data to render
 `src/flow/createIntent.ts` · `server/index.js` → `GET /api/create-payment`
 
 Nothing is created until the player asks: no network call on load. The server
-creates the intent with `amount: 0`, then fetches the method list
-(`GET /payments/{id}/client`) and the session tokens
-(`POST /payments/session_tokens`) and merges all three into one response. The
-vault authorization for the Cards SDK arrives as
-`session_tokens.vault_details.vault_data.sdk_authorization`.
+creates the intent with `amount: 0`, sending `X-Integration-Type: server` —
+which is what makes this one call rather than three: the method list, the wallet
+session tokens and `sdk_authorization` come back inline. Without that header the
+server would have to follow up with `GET /payments/{id}/client` and
+`POST /payments/session_tokens` itself.
+
+The Cards SDK is handed `session_tokens.vault_details` as its `vaultDetails`,
+which names the vault outright so the SDK performs no lookup of its own.
+`src/cards/vault.ts` falls back to the top-level `sdk_authorization` when a
+response carries only that.
 
 Saved methods are ordered most-recently-used first, and the top one leads on
 both screens.
@@ -188,7 +219,6 @@ to the lobby, which shows the result.
 | Diagram step | What is missing |
 | --- | --- |
 | Player info + approved limits | The lobby balance is the constant `BALANCE` in `src/ui/money.ts` |
-| `/v1/customers` | The create body names an existing `customer_id` directly |
 | PAM authorize | Stubbed on the server; always approves |
 | Fraud screening | Stubbed on the server; always approves |
 | BIN eligibility | Not called |

@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { HyperPaymentMethodSession } from '@juspay-tech/react-hyper-js';
 
 import type { CreatePaymentResponse } from '../server/api';
-import { getHyper, sdkAuthorizationFor } from './vault';
+import { getHyper, vaultDetailsFor } from './vault';
 
 /**
  * The session every card field mounts inside.
@@ -22,13 +22,13 @@ export function CardSession({
   children: React.ReactNode;
   onError?: (error: unknown) => void;
 }) {
-  const sdkAuthorization = useMemo(() => sdkAuthorizationFor(payment), [payment]);
+  const vaultDetails = useMemo(() => vaultDetailsFor(payment), [payment]);
   const hyper = useMemo(
     () => getHyper(payment.publishable_key ?? ''),
     [payment.publishable_key],
   );
 
-  if (!sdkAuthorization) {
+  if (!vaultDetails) {
     return (
       <p className="hint">
         This payment returned no vault details, so card fields cannot be shown.
@@ -39,7 +39,7 @@ export function CardSession({
   return (
     <HyperPaymentMethodSession
       hyper={hyper}
-      options={{ sdkAuthorization, appearance: APPEARANCE }}
+      options={{ vaultDetails, appearance: APPEARANCE }}
       onError={onError}
     >
       {children}
