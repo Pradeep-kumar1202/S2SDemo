@@ -34,6 +34,7 @@ npm run dev              # the app, port 3000
 | `HYPERSWITCH_API_KEY` | **Secret** key. Server only — never reaches the browser |
 | `HYPERSWITCH_PUBLISHABLE_KEY` | `pk_snd_…`, used for session tokens and the SDK |
 | `HYPERSWITCH_PROFILE_ID` | `pro_…`, the profile the payment is created against |
+| `HYPERSWITCH_CUG_USER` | Optional. `true` sends the `x-cug-user` header on every call |
 
 The browser calls the server at `http://localhost:5252`; override with
 `NEXT_PUBLIC_SERVER_URL`. The server must allow that origin (`CORS_ORIGIN`).
