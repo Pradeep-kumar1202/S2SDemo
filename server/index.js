@@ -77,7 +77,6 @@ async function hsFetch(path, { method = 'GET', body, headers = {} } = {}) {
       accept: 'application/json',
       'Content-Type': 'application/json',
       'X-Integration-Type': 'server',
-      "x-cug-user": true,
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
