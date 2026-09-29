@@ -93,6 +93,8 @@ const hsSecret = (path, options = {}) =>
     headers: {
       "api-key": HS_API_KEY,
       "x-merchant-domain": "s2s-web-demo.pages.dev",
+      "x-cug-user": "true",
+      "x-integration-type": "server",
     },
   });
 
@@ -240,7 +242,7 @@ app.get("/api/create-payment", async (req, res, next) => {
         amount,
         currency,
         profile_id,
-        customer_id: "hyperswitch_sdk_demo_id",
+        customer_id: "1790669356",
         billing: {
           address: {
             line1: "1467",
