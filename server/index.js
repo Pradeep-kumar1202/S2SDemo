@@ -51,6 +51,11 @@ const HS_BASE_URL = process.env.HYPERSWITCH_BASE_URL;
 const HS_API_KEY = process.env.HYPERSWITCH_API_KEY;
 const HS_PUBLISHABLE_KEY = process.env.HYPERSWITCH_PUBLISHABLE_KEY;
 const HS_PROFILE_ID = process.env.HYPERSWITCH_PROFILE_ID;
+// Sent as `x-cug-user` when set. Environments that do not expect the header are
+// happier without it, so it is opt-in rather than always on.
+const HS_CUG_USER = /^(1|true|yes)$/i.test(
+  process.env.HYPERSWITCH_CUG_USER || '',
+);
 for (const [name, value] of Object.entries({
   HYPERSWITCH_API_KEY: HS_API_KEY,
   HYPERSWITCH_PUBLISHABLE_KEY: HS_PUBLISHABLE_KEY,
@@ -62,6 +67,27 @@ for (const [name, value] of Object.entries({
 }
 
 /**
+ * How each call authenticates. The two endpoints this server uses disagree, and
+ * not harmlessly:
+ *
+ *   /payments            takes the secret key in the 'api-key' header, and
+ *                        401s if an 'Authorization' header is present too —
+ *                        create tolerates it, but update and sync do not.
+ *   /v1/customers        is the reverse: the key goes inside 'Authorization',
+ *                        with a profile, and an 'api-key' header alone is
+ *                        rejected as a missing param.
+ *
+ * So the credential travels per call rather than in the shared block below.
+ */
+const AUTH = {
+  payments: () => ({ 'api-key': HS_API_KEY }),
+  customers: () => ({
+    Authorization: `api-key=${HS_API_KEY}`,
+    'X-Profile-Id': HS_PROFILE_ID,
+  }),
+};
+
+/**
  * Calls Hyperswitch and returns { status, data } with the body parsed when
  * possible.
  *
@@ -70,14 +96,15 @@ for (const [name, value] of Object.entries({
  * tokens and `sdk_authorization` inline, so the server needs no follow-up calls
  * to /payments/{id}/client or /payments/session_tokens.
  */
-async function hsFetch(path, { method = 'GET', body, headers = {} } = {}) {
+async function hsFetch(path, { method = 'GET', body, auth = 'payments' } = {}) {
   const res = await fetch(`${HS_BASE_URL}${path}`, {
     method,
     headers: {
       accept: 'application/json',
       'Content-Type': 'application/json',
       'X-Integration-Type': 'server',
-      ...headers,
+      ...(HS_CUG_USER ? { 'x-cug-user': 'true' } : {}),
+      ...AUTH[auth](),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -90,10 +117,6 @@ async function hsFetch(path, { method = 'GET', body, headers = {} } = {}) {
   }
   return { status: res.status, data };
 }
-
-/** Server-to-server call with the secret key. */
-const hsSecret = (path, options = {}) =>
-  hsFetch(path, { ...options, headers: { 'api-key': HS_API_KEY } });
 
 /**
  * Step 0 — the player becomes a customer.
@@ -114,22 +137,17 @@ const hsSecret = (path, options = {}) =>
  * which is success as far as this flow is concerned.
  */
 async function ensureCustomer(playerId) {
-  const res = await fetch(`${HS_BASE_URL}/v1/customers`, {
+  const { status, data } = await hsFetch('/v1/customers', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `api-key=${HS_API_KEY}`,
-      'X-Profile-Id': HS_PROFILE_ID,
-    },
-    body: JSON.stringify({
+    auth: 'customers',
+    body: {
       email: 'guest@example.com',
       name: 'John Doe',
       merchant_reference_id: playerId,
-    }),
+    },
   });
 
-  const data = await res.json().catch(() => null);
-  if (res.ok) {
+  if (status < 400) {
     return { created: true, customer: data };
   }
   if (data?.error?.code === 'IR_12') {
@@ -140,7 +158,7 @@ async function ensureCustomer(playerId) {
   // earlier run, and the payment below uses their id either way.
   console.warn(
     `Warning: could not create customer ${playerId}:`,
-    data?.error?.message ?? res.status,
+    data?.error?.message ?? status,
   );
   return { created: false, customer: null };
 }
@@ -186,7 +204,7 @@ async function screenForFraud(payment) {
  * challenge is simply never heard from again.
  */
 async function syncPaymentStatus(paymentId) {
-  return hsSecret(`/payments/${encodeURIComponent(paymentId)}?force_sync=true`);
+  return hsFetch(`/payments/${encodeURIComponent(paymentId)}?force_sync=true`);
 }
 
 /**
@@ -196,7 +214,7 @@ async function syncPaymentStatus(paymentId) {
  * payments with the profile's default capture method, so capture is automatic.
  */
 async function capturePayment(paymentId) {
-  return hsSecret(`/payments/${encodeURIComponent(paymentId)}/capture`, {
+  return hsFetch(`/payments/${encodeURIComponent(paymentId)}/capture`, {
     method: 'POST',
     body: {},
   });
@@ -231,14 +249,30 @@ app.get('/api/create-payment', async (req, res, next) => {
     const player_id = 'player_demo_001';
     await ensureCustomer(player_id);
 
-    const { status, data } = await hsSecret('/payments', {
+    const { status, data } = await hsFetch('/payments', {
       method: 'POST',
       body: {
         amount,
         currency,
         profile_id: HS_PROFILE_ID,
         customer_id: player_id,
-        routing: { type: 'single', data: { connector: 'checkout' } },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
+          },
+        },
       },
     });
     if (status >= 400) {
@@ -276,7 +310,7 @@ app.post('/api/update-payment', async (req, res, next) => {
   }
 
   try {
-    const { status, data } = await hsSecret(
+    const { status, data } = await hsFetch(
       `/payments/${encodeURIComponent(paymentId)}`,
       { method: 'POST', body: { amount } },
     );
@@ -326,7 +360,7 @@ app.post('/api/confirm-payment', async (req, res, next) => {
       return res.status(402).json({ error: 'Declined by fraud screening' });
     }
 
-    const { status, data } = await hsSecret(
+    const { status, data } = await hsFetch(
       `/payments/${encodeURIComponent(paymentId)}/confirm`,
       { method: 'POST', body },
     );

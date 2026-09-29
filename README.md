@@ -41,6 +41,7 @@ npm run android          # or: npm run ios  (cd ios && pod install first)
 | `HYPERSWITCH_API_KEY` | **Secret** key. Server only — never ships in the app |
 | `HYPERSWITCH_PUBLISHABLE_KEY` | `pk_snd_…`, used for session tokens and the SDK |
 | `HYPERSWITCH_PROFILE_ID` | `pro_…`, the profile the payment is created against |
+| `HYPERSWITCH_CUG_USER` | Optional. `true` sends the `x-cug-user` header on every call |
 
 The app reaches the server at `src/server/config.ts` — `10.0.2.2:5252` on the
 Android emulator, `localhost:5252` on the iOS simulator. For a physical device,
