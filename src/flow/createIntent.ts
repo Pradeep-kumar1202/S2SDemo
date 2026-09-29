@@ -12,13 +12,16 @@ import { createPayment, type CreatePaymentResponse } from '../server/api';
  *   App             <- Server          : data to SDK for rendering
  *
  * Everything above the SDK happens on the server (`server/index.js`), because the
- * secret API key must never reach the app. From here the app only ever talks to
- * the server — one call, one screenful of data:
+ * secret API key must never reach the app. The server sends create with
+ * `X-Integration-Type: server`, which is what makes this one call rather than
+ * three: the method list, the wallet session tokens and `sdk_authorization`
+ * come back inline. From here the app only ever talks to the server — one call,
+ * one screenful of data:
  *
  *   payment_method_list.payment_methods_enabled  what the merchant accepts
  *   payment_method_list.customer_payment_methods the player's saved cards
  *   session_tokens.session_token                 wallet sheets (Apple/Google)
- *   session_tokens.vault_details                 auth for the Cards SDK
+ *   sdk_authorization                            auth for the Cards SDK
  *
  * The intent is created with amount 0 on purpose: the player has not typed an
  * amount yet. `updateIntent` puts the real amount on it before any payment

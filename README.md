@@ -76,6 +76,32 @@ read one thing, read `useDepositFlow.ts`.
 
 ## The flow, arrow by arrow
 
+### Step 0 — The player becomes a customer
+
+```
+Server        -> Payments API  : POST /v1/customers
+Server        <- Payments API  : customer (id + merchant_reference_id)
+```
+
+`ensureCustomer()` in `server/index.js`. Saved cards hang off a customer, so the
+player has to be one before an intent can name them. The player's own id goes in
+as `merchant_reference_id`, and that is what every later call uses as
+`customer_id` — the API's `0a_cus_…` id is never needed, and `/payments` rejects
+it with `IR_06`.
+
+The player is written into the two requests that need them — `player_demo_001`
+with an email and name; a real integration takes them from whoever is signed in.
+
+Two things about this endpoint are unlike the rest of the API, and both are why
+it does not go through `hsFetch`:
+
+- it is under `/v1` on the same host, where the payments calls are not, and
+- it authenticates with `Authorization: api-key=…`, not the `api-key` header.
+
+The call runs on every deposit: a player who already exists answers `IR_12`,
+which this treats as success. Any other failure is logged and the flow
+continues, since the payment names the player by id either way.
+
 ### Step 1 — Player reaches the lobby
 
 ```
@@ -97,16 +123,8 @@ App           <- Server        : data to render
 Nothing is created until the player asks: the app makes **no network call on
 launch**, and the lobby's Deposit button is what creates the intent.
 
-The server makes three calls and merges them into one response:
-
-1. `POST /payments` with `amount: 0` — no amount has been chosen yet.
-2. `GET /payments/{id}/client` (`server/index.js:102`) — the method list: what
-   the merchant accepts, and the player's saved cards. Authenticated with a
-   base64 `profile_id,publishable_key,client_secret,customer_id,payment_id`
-   blob, not a key.
-3. `POST /payments/session_tokens` (`server/index.js:119`) — wallet session
-   tokens, plus `vault_details`, which carries the `sdk_authorization` the Cards
-   SDK needs.
+The server creates the intent with `amount: 0` — no amount has been chosen yet
+— and returns what came back:
 
 ```jsonc
 {
@@ -115,6 +133,7 @@ The server makes three calls and merges them into one response:
     "payment_methods_enabled":  [ /* card:credit, card:debit, wallets… */ ],
     "customer_payment_methods": [ /* the player's saved cards */ ]
   },
+  "sdk_authorization": "…",            // the Cards SDK's authorization
   "session_tokens": {
     "session_token":  [ /* one per wallet; empty if none are enabled */ ],
     "vault_details": { "vault_type": "hyperswitch",
@@ -123,10 +142,14 @@ The server makes three calls and merges them into one response:
 }
 ```
 
-> **Deviation.** The diagram has the server call `/v1/customers` first and send
-> `X-Integration-Type: server` on create, which returns the method list and
-> session tokens inline. That header is still in development, so the two
-> follow-up calls above stand in for it (`server/index.js:99`).
+> **One call, not three.** Create is sent with `X-Integration-Type: server`,
+> which returns the method list, the wallet session tokens and
+> `sdk_authorization` inline. Without that header a server has to follow up with
+> `GET /payments/{id}/client` and `POST /payments/session_tokens` itself.
+>
+> The player is `player_demo_001`, written directly into the customers call and
+> the payment. Note that `customer_id` on a payment is the player's own id, not
+> the API's `0a_cus_…` id — that format is rejected here with `IR_06`.
 
 Saved methods are ordered most-recently-used first (`sortedSavedMethods` in
 `src/paymentMethods.ts`), and the top one leads on both screens. If that top
@@ -247,7 +270,6 @@ called so the shape of the flow stays honest.
 | Diagram step | Where | What is missing |
 | --- | --- | --- |
 | Player info + approved limits | — | The lobby balance is the constant `BALANCE` in `src/ui/money.ts`; "Manage Deposit Limits" is inert |
-| `/v1/customers` | — | The create body names an existing `customer_id` directly |
 | PAM authorize | `server/index.js:159` | Always approves |
 | Fraud screening | `server/index.js:169` | Always approves |
 | BIN eligibility | — | The diagram checks the BIN after card entry; not called here |

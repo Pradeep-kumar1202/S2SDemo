@@ -108,6 +108,12 @@ export type CreatePaymentResponse = {
   customer_id?: string | null;
   profile_id?: string;
   publishable_key: string;
+  /**
+   * Present when create/update was sent with `X-Integration-Type: server`;
+   * it is the Cards SDK's authorization, and replaces the vault_details blob a
+   * separate session-tokens call returns.
+   */
+  sdk_authorization?: string;
   payment_method_list: PaymentMethodList;
   session_tokens: {
     payment_id: string;

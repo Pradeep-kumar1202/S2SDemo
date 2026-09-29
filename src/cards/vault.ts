@@ -31,20 +31,32 @@ export function getHyper(publishableKey: string): Promise<HyperswitchInstance> {
 }
 
 /**
- * The vault the profile uses, taken from the payment we already created:
- * session_tokens.vault_details is `{ vault_type, vault_data: { sdk_authorization } }`,
- * and the SDK wants the same thing camelCased. Passing it means the SDK does
- * no payment-method-session lookup of its own.
+ * The vault the profile uses, taken from the payment the server already created.
+ * Passing it means the SDK does no payment-method-session lookup of its own.
+ *
+ * It arrives as `session_tokens.vault_details` in the API's snake_case, so it is
+ * read from there and camelCased — which also means a profile on a vault other
+ * than Hyperswitch works without a change here. Some responses carry only the
+ * top-level `sdk_authorization` instead, and that is the fallback.
  */
 export function vaultDetailsFor(
   payment: CreatePaymentResponse | null,
 ): VaultDetails | null {
   const raw = payment?.session_tokens?.vault_details;
-  if (!raw?.vault_type) {
-    return null;
+  if (raw?.vault_type) {
+    return {
+      vaultType: raw.vault_type,
+      vaultData: toCamelCaseKeys(raw.vault_data ?? {}),
+    };
   }
-  return {
-    vaultType: raw.vault_type,
-    vaultData: toCamelCaseKeys(raw.vault_data ?? {}),
-  };
+
+  const sdkAuthorization = payment?.sdk_authorization;
+  if (typeof sdkAuthorization === 'string' && sdkAuthorization !== '') {
+    return {
+      vaultType: 'hyperswitch',
+      vaultData: { sdkAuthorization },
+    };
+  }
+
+  return null;
 }
