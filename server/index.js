@@ -88,7 +88,13 @@ async function hsFetch(path, { method = "GET", body, headers = {} } = {}) {
 
 /** Server-to-server call with the secret key. */
 const hsSecret = (path, options = {}) =>
-  hsFetch(path, { ...options, headers: { "api-key": HS_API_KEY } });
+  hsFetch(path, {
+    ...options,
+    headers: {
+      "api-key": HS_API_KEY,
+      "x-merchant-domain": "s2s-web-demo.pages.dev",
+    },
+  });
 
 /**
  * The payment method list the SDK renders: enabled methods, the customer's
@@ -118,7 +124,12 @@ function fetchPaymentMethodList(payment) {
 function fetchSessionTokens(payment, wallets = []) {
   return hsFetch("/payments/session_tokens", {
     method: "POST",
-    headers: { "api-key": HS_PUBLISHABLE_KEY },
+    headers: {
+      "api-key": HS_PUBLISHABLE_KEY,
+      "x-merchant-domain": "s2s-web-demo.pages.dev",
+      "x-browser-name": "Safari",
+      "x-client-platform": "web",
+    },
     body: {
       payment_id: payment.payment_id,
       client_secret: payment.client_secret,

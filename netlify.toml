@@ -1,0 +1,13 @@
+# Netlify build settings for the static Next.js export.
+# `next build` with `output: "export"` emits the site into `out/`.
+
+[build]
+  command = "npm run build"
+  publish = "out"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# The frontend calls the merchant backend (server/index.js) at the URL baked in
+# via NEXT_PUBLIC_SERVER_URL at build time. Set it in the Netlify UI
+# (Site settings -> Environment variables) to wherever the backend is hosted.
