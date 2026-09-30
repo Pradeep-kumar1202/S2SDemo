@@ -43,10 +43,18 @@ export function vaultDetailsFor(
   payment: CreatePaymentResponse | null,
 ): VaultDetails | null {
   const raw = payment?.session_tokens?.vault_details;
+  // The SDK's Hyperswitch vault form ignores the environment given to
+  // Hyperswitch.init and falls back to PROD (live.hyperswitch.io) unless
+  // vaultData carries one, so a sandbox key would tokenize against prod.
+  const environment = environmentFor(payment?.publishable_key ?? '');
   if (raw?.vault_type) {
+    const vaultData = toCamelCaseKeys(raw.vault_data ?? {});
     return {
       vaultType: raw.vault_type,
-      vaultData: toCamelCaseKeys(raw.vault_data ?? {}),
+      vaultData:
+        raw.vault_type === 'hyperswitch'
+          ? { ...vaultData, environment }
+          : vaultData,
     };
   }
 
@@ -54,7 +62,7 @@ export function vaultDetailsFor(
   if (typeof sdkAuthorization === 'string' && sdkAuthorization !== '') {
     return {
       vaultType: 'hyperswitch',
-      vaultData: { sdkAuthorization },
+      vaultData: { sdkAuthorization, environment },
     };
   }
 
