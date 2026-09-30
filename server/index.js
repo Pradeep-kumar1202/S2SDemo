@@ -51,6 +51,7 @@ const HS_BASE_URL = process.env.HYPERSWITCH_BASE_URL;
 const HS_API_KEY = process.env.HYPERSWITCH_API_KEY;
 const HS_PUBLISHABLE_KEY = process.env.HYPERSWITCH_PUBLISHABLE_KEY;
 const HS_PROFILE_ID = process.env.HYPERSWITCH_PROFILE_ID;
+const HS_MERCHANT_ID = process.env.HYPERSWITCH_MERCHANT_ID;
 // Sent as `x-cug-user` when set. Environments that do not expect the header are
 // happier without it, so it is opt-in rather than always on.
 const HS_CUG_USER = /^(1|true|yes)$/i.test(
@@ -255,7 +256,9 @@ app.get('/api/create-payment', async (req, res, next) => {
         amount,
         currency,
         profile_id: HS_PROFILE_ID,
+        merchant_id: HS_MERCHANT_ID,
         customer_id: player_id,
+        description: 'Deposit',
         billing: {
           address: {
             line1: "1467",
