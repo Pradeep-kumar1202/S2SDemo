@@ -7,17 +7,17 @@
  */
 
 export type TokenizeErrorCode =
-  | 'validation_error'
-  | 'incomplete_field_set'
-  | 'unsupported_configuration'
-  | 'sdk_not_ready'
-  | 'session_expired'
-  | 'session_consumed'
-  | 'invalid_session'
-  | 'tokenization_failed'
-  | 'tokenization_in_progress'
-  | 'confirm_in_progress'
-  | 'unknown_outcome';
+  | "validation_error"
+  | "incomplete_field_set"
+  | "unsupported_configuration"
+  | "sdk_not_ready"
+  | "session_expired"
+  | "session_consumed"
+  | "invalid_session"
+  | "tokenization_failed"
+  | "tokenization_in_progress"
+  | "confirm_in_progress"
+  | "unknown_outcome";
 
 /** The SDK's failure shape, the `error` object out of `{ error: {...} }`. */
 export type TokenizeError = {
@@ -44,15 +44,17 @@ export type TokenizeResult = Record<string, unknown>;
  */
 export function tokenizeError(result: TokenizeResult): TokenizeError | null {
   const error = result?.error;
-  if (!error || typeof error !== 'object') {
+  if (!error || typeof error !== "object") {
     return null;
   }
   const { code, message, type } = error as Record<string, unknown>;
   return {
-    code: typeof code === 'string' ? code : 'unknown_outcome',
+    code: typeof code === "string" ? code : "unknown_outcome",
     message:
-      typeof message === 'string' ? message : 'The card could not be tokenized.',
-    type: typeof type === 'string' ? type : 'api_error',
+      typeof message === "string"
+        ? message
+        : "The card could not be tokenized.",
+    type: typeof type === "string" ? type : "api_error",
   };
 }
 
@@ -71,7 +73,7 @@ export function vaultTokenOf(result: TokenizeResult): string | null {
   for (const entry of methods) {
     const token = (entry as { payment_method_token?: { data?: unknown } })
       ?.payment_method_token?.data;
-    if (typeof token === 'string' && token !== '') {
+    if (typeof token === "string" && token !== "") {
       return token;
     }
   }
@@ -84,11 +86,10 @@ export type CardFormHandle = {
 };
 
 /**
- * A change event; never carries a card value.
+ * A field's change event; never carries a card value.
  *
- * It reports one field, not the form: `elementType` says which. The form-level
- * `CardForm onChange` is not a substitute — it never fires on this surface, so
- * a form's own completeness is the three field events taken together.
+ * It reports one field, not the form: `elementType` says which. For the form
+ * as a whole, subscribe to `cardDetailsChange` instead — see below.
  */
 export type CardFormChange = {
   complete: boolean;
@@ -99,5 +100,60 @@ export type CardFormChange = {
   error?: string;
 };
 
-/** The fields a new card needs before it can be tokenized. */
-export const CARD_FIELDS = ['cardNumber', 'cardExpiry', 'cardCvc'] as const;
+/**
+ * Form-level events a field opts its form into, through its `options`.
+ *
+ * The SDK emits nothing to `CardForm onChange` until one is named here: every
+ * field's `options.subscriptionEvents` is merged into the form when the field
+ * is created, so naming it on any one field subscribes the whole form.
+ */
+export const SUBSCRIPTION_EVENTS = ["cardDetailsChange"] as const;
+
+/**
+ * Anything `CardForm onChange` may receive.
+ *
+ * Every subscribed event arrives on the same handler, told apart only by
+ * `eventName`, so the handler takes this and narrows it — never one event's
+ * shape directly, or the next event subscribed would be misread as it.
+ */
+export type CardFormEvent = {
+  eventName: string;
+  elementType?: string;
+  payload?: unknown;
+};
+
+/**
+ * `cardDetailsChange`: the card across all three fields at once. Like the
+ * field events it never carries a card value — only the BIN, the last four and
+ * flags.
+ */
+export type CardDetailsChange = CardFormEvent & {
+  eventName: "cardDetailsChange";
+  payload: CardDetails;
+};
+
+export function isCardDetailsChange(
+  event: CardFormEvent,
+): event is CardDetailsChange {
+  return (
+    event.eventName === "cardDetailsChange" &&
+    typeof event.payload === "object" &&
+    event.payload !== null
+  );
+}
+
+export type CardDetails = {
+  bin: string | null;
+  extendedBin: string | null;
+  last4: string | null;
+  brand: string | null;
+  expiryMonth: string | null;
+  expiryYear: string | null;
+  formattedExpiry: string | null;
+  /** Complete *and* valid (length and Luhn), not merely filled in. */
+  isCardNumberComplete: boolean;
+  isCardNumberValid: boolean;
+  isExpiryComplete: boolean;
+  isExpiryValid: boolean;
+  isCvcComplete: boolean;
+};

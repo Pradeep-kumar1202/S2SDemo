@@ -2,9 +2,13 @@
  * `@juspay-tech/react-hyper-js` ships no types, so the components this demo
  * uses are declared here. Anything not declared is still importable as `any`.
  */
-declare module '@juspay-tech/react-hyper-js' {
-  import type { ComponentType, ReactNode, Ref } from 'react';
-  import type { CardFormChange, CardFormHandle } from '@/src/cards/types';
+declare module "@juspay-tech/react-hyper-js" {
+  import type { ComponentType, ReactNode, Ref } from "react";
+  import type {
+    CardFormChange,
+    CardFormEvent,
+    CardFormHandle,
+  } from "@/src/cards/types";
 
   export const HyperPaymentMethodSession: ComponentType<{
     hyper: unknown;
@@ -22,7 +26,8 @@ declare module '@juspay-tech/react-hyper-js' {
 
   export const CardForm: ComponentType<{
     ref?: Ref<CardFormHandle>;
-    onChange?: (event: CardFormChange) => void;
+    /** Silent unless a field names the event in `options.subscriptionEvents`. */
+    onChange?: (event: CardFormEvent) => void;
     onReady?: () => void;
     children?: ReactNode;
   }>;
@@ -46,7 +51,7 @@ declare module '@juspay-tech/react-hyper-js' {
   export const CardCVCField: ComponentType<FieldProps>;
 }
 
-declare module '@juspay-tech/hyper-js' {
+declare module "@juspay-tech/hyper-js" {
   export function loadHyper(
     publishableKey: string,
     options?: Record<string, unknown>,
