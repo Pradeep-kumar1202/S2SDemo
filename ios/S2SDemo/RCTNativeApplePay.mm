@@ -37,7 +37,10 @@
 {
   // PassKit must be driven from the main thread.
   dispatch_async(dispatch_get_main_queue(), ^{
-    // Keep a strong reference for the lifetime of the sheet; it is the PKPaymentAuthorizationController delegate.
+    // Keep a strong reference for the lifetime of the sheet; it is the PKPaymentAuthorizationController delegate,
+    // which PassKit holds weakly. Don't release it when the result arrives: on success that happens in
+    // didAuthorizePayment, before paymentAuthorizationControllerDidFinish dismisses the sheet. The next
+    // startPayment replaces it.
     self->_handler = [ApplePayHandler new];
 
     __block BOOL settled = NO;
@@ -47,7 +50,6 @@
                                        return;
                                      }
                                      settled = YES;
-                                     self->_handler = nil;
                                      resolve(response.firstObject ?: @{@"status" : @"Failed"});
                                    }
                               presentCallback:nil];
