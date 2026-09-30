@@ -86,6 +86,20 @@ export function useDepositFlow() {
     [applePayReady, googlePayReady, payment],
   );
 
+  /**
+   * Re-reads which wallets can run, from the payment's own session tokens.
+   *
+   * Every time the payment is replaced, not only after create: the tokens are
+   * minted for the amount on the intent, and at amount 0 — which is what create
+   * uses — there is no Apple Pay token at all. Only an update brings one.
+   */
+  const refreshWallets = useCallback(async (next: CreatePaymentResponse) => {
+    const availability = await walletAvailability(next);
+    setGooglePayReady(availability.googlePayReady);
+    setApplePayReady(availability.applePayReady);
+    return availability;
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Step 1 — create the intent when the player asks to deposit
   // ---------------------------------------------------------------------------
@@ -101,9 +115,7 @@ export function useDepositFlow() {
       // Wallet availability is settled first: a wallet that cannot run here is
       // hidden — Google Pay included, when its session allows only PAN_ONLY —
       // so the screen must not start on it.
-      const availability = await walletAvailability(created);
-      setGooglePayReady(availability.googlePayReady);
-      setApplePayReady(availability.applePayReady);
+      const availability = await refreshWallets(created);
 
       // The player's most recently used usable method leads, on both screens.
       const top = defaultSelection(created.payment_method_list, wallet =>
@@ -120,7 +132,7 @@ export function useDepositFlow() {
     } finally {
       setCreating(false);
     }
-  }, []);
+  }, [refreshWallets]);
 
   // ---------------------------------------------------------------------------
   // Step 2 — put the entered amount on the intent
@@ -134,12 +146,14 @@ export function useDepositFlow() {
     try {
       const refreshed = await updateIntent(payment, value);
       setPayment(refreshed);
+      // Settled before the sheet opens, so it lists the wallets this amount has.
+      await refreshWallets(refreshed);
       return refreshed;
     } catch (e) {
       setError(messageOf(e));
       return null;
     }
-  }, [payment, value]);
+  }, [payment, refreshWallets, value]);
 
   /** Opening the sheet is a moment the player can pick an instrument. */
   const openSheet = useCallback(async () => {
@@ -231,6 +245,8 @@ export function useDepositFlow() {
     ) {
       const updated = updateIntent(payment, value).then(refreshed => {
         setPayment(refreshed);
+        // Not awaited: merchant validation is waiting on this promise.
+        void refreshWallets(refreshed);
         return refreshed;
       });
       // Confirm reads only payment_id, which the update does not change.
@@ -289,6 +305,7 @@ export function useDepositFlow() {
     payment,
     payWithWallet,
     pushAmount,
+    refreshWallets,
     screen,
     sheetSelection,
     value,
