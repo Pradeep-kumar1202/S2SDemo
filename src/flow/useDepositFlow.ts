@@ -79,6 +79,19 @@ export function useDepositFlow() {
     [applePayReady, googlePayReady, payment],
   );
 
+  /**
+   * Re-checked every time the payment is replaced, not just on create: the
+   * intent starts at amount 0, and a wallet whose connector will not quote a
+   * zero amount (Apple Pay) only gets its session token once update has put
+   * the real amount on it.
+   */
+  const refreshWallets = useCallback(async (current: CreatePaymentResponse) => {
+    const availability = await walletAvailability(current);
+    setGooglePayReady(availability.googlePayReady);
+    setApplePayReady(availability.applePayReady);
+    return availability;
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Step 1 — create the intent when the player asks to deposit
   // ---------------------------------------------------------------------------
@@ -93,9 +106,7 @@ export function useDepositFlow() {
 
       // Wallet availability is settled first: a wallet that cannot be used is
       // hidden everywhere, so the screen must not start on one.
-      const availability = await walletAvailability(created);
-      setGooglePayReady(availability.googlePayReady);
-      setApplePayReady(availability.applePayReady);
+      const availability = await refreshWallets(created);
 
       // The player's most recently used usable method leads, on both screens.
       const top = defaultSelection(created.payment_method_list, wallet =>
@@ -112,7 +123,7 @@ export function useDepositFlow() {
     } finally {
       setCreating(false);
     }
-  }, []);
+  }, [refreshWallets]);
 
   // ---------------------------------------------------------------------------
   // Step 2 — put the entered amount on the intent
@@ -126,12 +137,13 @@ export function useDepositFlow() {
     try {
       const refreshed = await updateIntent(payment, value);
       setPayment(refreshed);
+      await refreshWallets(refreshed);
       return refreshed;
     } catch (e) {
       setError(messageOf(e));
       return null;
     }
-  }, [payment, value]);
+  }, [payment, refreshWallets, value]);
 
   /** Opening the sheet is a moment the player can pick an instrument. */
   const openSheet = useCallback(async () => {
