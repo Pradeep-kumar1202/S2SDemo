@@ -255,6 +255,9 @@ app.get("/api/create-payment", async (req, res, next) => {
         currency,
         profile_id: HS_PROFILE_ID,
         customer_id: player_id,
+        description: 'test payment',
+        authentication_type: "no_three_ds",
+        setup_future_usage: "off_session",
         billing: {
           address: {
             line1: "1467",
@@ -271,6 +274,7 @@ app.get("/api/create-payment", async (req, res, next) => {
             number: "8056594427",
             country_code: "+91",
           },
+          email: "guest@example.com",
         },
       },
     });
