@@ -275,11 +275,27 @@ export function useDepositFlow() {
         setScreen('methods');
         return;
       }
+      const paymentMethodType = firstTypeFor(methodList, selected.paymentMethod);
+      // Only the Card row has fields; any other row (an Interac bank redirect)
+      // has nothing to collect, so its method and type are the instrument.
+      if (selected.paymentMethod !== 'card') {
+        return confirmWith(
+          () =>
+            Promise.resolve({
+              ok: true,
+              body: {
+                payment_method: selected.paymentMethod,
+                payment_method_type: paymentMethodType,
+                payment_method_data: {
+                  [selected.paymentMethod]: { [paymentMethodType]: {} },
+                },
+              },
+            }),
+          current,
+        );
+      }
       return confirmWith(
-        () =>
-          tokenizeCard(cardFormRef.current, {
-            paymentMethodType: firstTypeFor(methodList, selected.paymentMethod),
-          }),
+        () => tokenizeCard(cardFormRef.current, { paymentMethodType }),
         current,
       );
     }
@@ -343,7 +359,10 @@ export function useDepositFlow() {
     payment != null &&
     selected != null &&
     value > 0 &&
-    (selected.kind !== 'new_card' || screen !== 'methods' || cardComplete);
+    (selected.kind !== 'new_card' ||
+      selected.paymentMethod !== 'card' ||
+      screen !== 'methods' ||
+      cardComplete);
 
   return {
     screen,

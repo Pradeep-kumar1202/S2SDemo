@@ -102,7 +102,8 @@ async function hsFetch(path, { method = "GET", body, auth = "payments" } = {}) {
       accept: "application/json",
       "Content-Type": "application/json",
       "X-Integration-Type": "server",
-      ...(HS_CUG_USER ? { 'x-cug-user': 'true' } : {}),
+      "x-merchant-domain": "your.domain.com",
+      ...(HS_CUG_USER ? { "x-cug-user": "true" } : {}),
       ...AUTH[auth](),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -274,6 +275,7 @@ app.get("/api/create-payment", async (req, res, next) => {
             number: "8056594427",
             country_code: "+91",
           },
+          // Interac (bank_redirect) will not confirm without a billing email.
           email: "guest@example.com",
         },
       },

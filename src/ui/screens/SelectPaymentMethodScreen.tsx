@@ -213,6 +213,12 @@ export function SelectPaymentMethodScreen({
                         onComplete={onCardComplete}
                       />
                     </div>
+                  ) : isSelected ? (
+                    <div className="card-fields">
+                      <p className="muted small">
+                        No details needed. Tap Deposit to proceed.
+                      </p>
+                    </div>
                   ) : null}
                 </div>
               );

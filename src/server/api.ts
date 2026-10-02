@@ -1,4 +1,4 @@
-import { SERVER_URL } from './config';
+import { SERVER_URL } from "./config";
 
 export type SdkNextAction = {
   next_action: string;
@@ -6,7 +6,7 @@ export type SdkNextAction = {
 };
 
 export type GooglePaySessionToken = {
-  wallet_name: 'google_pay';
+  wallet_name: "google_pay";
   connector: string;
   delayed_session_token?: boolean;
   sdk_next_action?: SdkNextAction;
@@ -24,7 +24,7 @@ export type GooglePaySessionToken = {
 };
 
 export type ApplePaySessionToken = {
-  wallet_name: 'apple_pay';
+  wallet_name: "apple_pay";
   connector: string;
   delayed_session_token?: boolean;
   sdk_next_action?: SdkNextAction;
@@ -121,7 +121,12 @@ export type CreatePaymentResponse = {
     session_token: SessionToken[];
     /** Vault the Hosted Card Fields SDK should drive, in Hyperswitch's wire shape. */
     vault_details?: {
-      vault_type: 'hyperswitch' | 'vgs' | 'skyflow' | 'basis_theory' | 'evervault';
+      vault_type:
+        | "hyperswitch"
+        | "vgs"
+        | "skyflow"
+        | "basis_theory"
+        | "evervault";
       vault_data?: Record<string, unknown>;
     };
   };
@@ -140,8 +145,8 @@ export type ConfirmPaymentResponse = {
 };
 
 export type WalletPaymentMethodData = {
-  payment_method: 'wallet';
-  payment_method_type: 'google_pay' | 'apple_pay';
+  payment_method: "wallet";
+  payment_method_type: "google_pay" | "apple_pay";
   payment_method_data: {
     wallet: Record<string, unknown>;
     billing?: unknown;
@@ -179,7 +184,7 @@ export type ConfirmPaymentData =
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${SERVER_URL}${path}`, {
     ...init,
-    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
   });
   const text = await res.text();
   let data: unknown = null;
@@ -189,21 +194,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     data = text;
   }
   if (!res.ok) {
-    throw new Error(`${errorMessageOf(data) ?? `HTTP ${res.status}`} (${path})`);
+    throw new Error(
+      `${errorMessageOf(data) ?? `HTTP ${res.status}`} (${path})`,
+    );
   }
   return data as T;
 }
 
 /** The server reports failures as { error } or { error: { message } }. */
 function errorMessageOf(data: unknown): string | null {
-  if (typeof data !== 'object' || data === null || !('error' in data)) {
+  if (typeof data !== "object" || data === null || !("error" in data)) {
     return null;
   }
   const error = (data as { error: unknown }).error;
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
-  if (typeof error === 'object' && error !== null && 'message' in error) {
+  if (typeof error === "object" && error !== null && "message" in error) {
     return String((error as { message: unknown }).message);
   }
   return null;
@@ -211,7 +218,7 @@ function errorMessageOf(data: unknown): string | null {
 
 /** Creates a payment and returns its payment method list + wallet session tokens. */
 export function createPayment(): Promise<CreatePaymentResponse> {
-  return request('/api/create-payment');
+  return request("/api/create-payment");
 }
 
 /**
@@ -222,8 +229,8 @@ export function updatePayment(
   paymentId: string,
   amount: number,
 ): Promise<CreatePaymentResponse> {
-  return request('/api/update-payment', {
-    method: 'POST',
+  return request("/api/update-payment", {
+    method: "POST",
     body: JSON.stringify({ payment_id: paymentId, amount }),
   });
 }
@@ -233,19 +240,24 @@ export function confirmPayment(
   paymentId: string,
   body: ConfirmPaymentData & Record<string, unknown>,
 ): Promise<ConfirmPaymentResponse> {
-  return request('/api/confirm-payment', {
-    method: 'POST',
+  return request("/api/confirm-payment", {
+    method: "POST",
     body: JSON.stringify({
       payment_id: paymentId,
       ...body,
-      customer_acceptance: {
-        acceptance_type: "online",
-        accepted_at: "2026-10-01T08:47:51.331Z",
-        online: {
-          user_agent:
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
-        },
-      },
+      customer_acceptance: customerAcceptance(),
     }),
   });
+}
+
+/**
+ * The player's acceptance, recorded as they press Deposit: the moment they
+ * did, and the browser they did it from.
+ */
+function customerAcceptance() {
+  return {
+    acceptance_type: "online",
+    accepted_at: new Date().toISOString(),
+    online: { user_agent: navigator.userAgent },
+  };
 }

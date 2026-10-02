@@ -49,13 +49,7 @@ declare module "@juspay-tech/react-hyper-js" {
   export const CardNumberField: ComponentType<FieldProps>;
   export const CardExpiryField: ComponentType<FieldProps>;
   export const CardCVCField: ComponentType<FieldProps>;
-}
-
-declare module "@juspay-tech/hyper-js" {
-  export function loadHyper(
-    publishableKey: string,
-    options?: Record<string, unknown>,
-  ): Promise<unknown>;
+  export const CardholderNameField: ComponentType<FieldProps>;
 }
 
 /** pay.js attaches the Google Pay API to window once it has loaded. */
@@ -63,4 +57,6 @@ interface Window {
   google?: typeof google;
   /** Safari only; absent in every other browser. */
   ApplePaySession?: typeof ApplePaySession;
+  /** HyperLoader.js attaches the SDK constructor once it has loaded. */
+  Hyper?: (options: { publishableKey: string }) => unknown;
 }
