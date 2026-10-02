@@ -48,9 +48,10 @@ export async function walletAvailability(payment: CreatePaymentResponse): Promis
 
   const googlePayToken = findWalletToken(payment, 'google_pay');
   if (googlePayToken && isGooglePaySupported()) {
-    googlePayReady = await isReadyToPay(
+    const environment = googlePayEnvironment(payment.publishable_key ?? '')
+    googlePayReady = environment === 'TEST' ? true : await isReadyToPay(
       googlePayToken,
-      googlePayEnvironment(payment.publishable_key ?? ''),
+      environment,
     );
   }
 

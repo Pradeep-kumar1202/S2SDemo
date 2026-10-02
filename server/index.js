@@ -247,7 +247,7 @@ app.get('/api/create-payment', async (req, res, next) => {
   const currency = 'USD';
 
   try {
-    const player_id = 'player_demo_001';
+    const player_id = 'player_demo_004';
     await ensureCustomer(player_id);
 
     const { status, data } = await hsFetch('/payments', {
@@ -258,7 +258,9 @@ app.get('/api/create-payment', async (req, res, next) => {
         profile_id: HS_PROFILE_ID,
         merchant_id: HS_MERCHANT_ID,
         customer_id: player_id,
-        description: 'Deposit',
+        description: 'test payment',
+        authentication_type: "no_three_ds",
+        setup_future_usage: "off_session",
         billing: {
           address: {
             line1: "1467",
@@ -275,6 +277,7 @@ app.get('/api/create-payment', async (req, res, next) => {
             number: "8056594427",
             country_code: "+91",
           },
+          email: "guest@example.com",
         },
       },
     });

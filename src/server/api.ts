@@ -160,7 +160,21 @@ export type CardTokenPaymentData = {
   payment_token?: string;
 } & Record<string, unknown>;
 
-export type ConfirmPaymentData = WalletPaymentMethodData | CardTokenPaymentData;
+/**
+ * Confirm body for a method with no fields to collect, such as an Interac bank
+ * redirect: the method and type are the whole instrument, nested the way
+ * Hyperswitch reads them — `{ bank_redirect: { interac: {} } }`.
+ */
+export type NoFieldsPaymentData = {
+  payment_method: string;
+  payment_method_type: string;
+  payment_method_data: Record<string, Record<string, Record<string, never>>>;
+};
+
+export type ConfirmPaymentData =
+  | WalletPaymentMethodData
+  | CardTokenPaymentData
+  | NoFieldsPaymentData;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${SERVER_URL}${path}`, {
@@ -208,6 +222,17 @@ export function confirmPayment(
 ): Promise<ConfirmPaymentResponse> {
   return request('/api/confirm-payment', {
     method: 'POST',
-    body: JSON.stringify({ payment_id: paymentId, ...body }),
+    body: JSON.stringify({
+      payment_id: paymentId,
+      ...body,
+      customer_acceptance: {
+        acceptance_type: "online",
+        accepted_at: "2026-10-01T08:47:51.331Z",
+        online: {
+          user_agent:
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+        },
+      },
+    }),
   });
 }
