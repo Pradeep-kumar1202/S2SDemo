@@ -30,11 +30,22 @@ export async function confirmDeposit(
 ): Promise<DepositOutcome> {
   const result = await confirmPayment(payment.payment_id, body);
 
+  const redirect = redirectUrlOf(result);
+  if (redirect) {
+    return {
+      redirect,
+      paymentId: result.payment_id,
+      message: 'Finishing authentication…',
+    };
+  }
+
   const nextAction = pendingNextAction(result);
   if (nextAction) {
     return {
       ok: false,
-      message: `Payment ${result.payment_id} needs ${result.status} — next action is not handled in this demo.`,
+      message: `Payment ${result.payment_id} needs ${
+        result.status
+      } — ${describeNextAction(nextAction)} is not handled in this demo.`,
     };
   }
 
@@ -49,20 +60,36 @@ export async function confirmDeposit(
 }
 
 /**
- * Step 5 — next action (3DS challenge, redirect, QR).
+ * Step 5 — next action.
  *
- * NOT IMPLEMENTED IN THIS DEMO. A confirm does not always end the story: when
- * the issuer wants a 3DS challenge, or the method is a redirect APM, Hyperswitch
- * answers with a status like `requires_customer_action` and a `next_action`
- * object describing what to present.
+ * A confirm does not always end the story. When the issuer wants a 3DS
+ * challenge, or the method is a redirect APM, the response carries a
+ * `next_action` describing what to present:
  *
- * A real integration hands that object to the Hyperswitch SDK to display, waits
- * for the player to finish, and then syncs the payment status (which this demo
- * also leaves out — see `syncPaymentStatus` in `server/index.js`).
+ *   { "type": "redirect_to_url", "redirect_to_url": "https://…" }
  *
- * This function only detects the case so the UI can say so honestly rather than
- * reporting a pending payment as done.
+ * `redirect_to_url` is handled: the flow opens that URL and reconciles the
+ * payment when the player returns. The other shapes Hyperswitch can send —
+ * `display_qr_code`, `invoke_sdk_client`, `third_party_sdk_session_token` —
+ * are reported rather than presented, so a pending payment is never shown as
+ * done.
  */
+function redirectUrlOf(result: ConfirmPaymentResponse): string | null {
+  const action = result.next_action as
+    | { type?: string; redirect_to_url?: string }
+    | null
+    | undefined;
+  return action?.type === 'redirect_to_url' && action.redirect_to_url
+    ? action.redirect_to_url
+    : null;
+}
+
 function pendingNextAction(result: ConfirmPaymentResponse): unknown | null {
   return result.next_action ?? null;
+}
+
+/** The action's own name, so the message says which one was not handled. */
+function describeNextAction(action: unknown): string {
+  const type = (action as { type?: string } | null)?.type;
+  return type ? `\`${type}\`` : 'that next action';
 }

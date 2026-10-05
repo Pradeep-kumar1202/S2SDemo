@@ -59,15 +59,18 @@ export function WithdrawalScreen({
         </div>
       </header>
 
-      <button
-        className="method-pill"
-        onClick={onOpenMethods}
-        disabled={busy || loading}
-      >
-        <CardBrandMark network={selectionNetwork} />
-        <span className="method-label">{selectionLabel}</span>
-        <span className="chevron">⌄</span>
-      </button>
+      {/* Same .method-row wrapper as the deposit screen, so both sit alike. */}
+      <div className="method-row">
+        <button
+          className="method-pill"
+          onClick={onOpenMethods}
+          disabled={busy || loading}
+        >
+          <CardBrandMark network={selectionNetwork} />
+          <span className="method-label">{selectionLabel}</span>
+          <span className="chevron">⌄</span>
+        </button>
+      </div>
 
       <div className="amount">
         <label className="visually-hidden" htmlFor="withdraw-amount">

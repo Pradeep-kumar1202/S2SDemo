@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CardFormHandle } from '../cards/types';
-import type { CreatePaymentResponse } from '../server/api';
+import { syncPayment, type CreatePaymentResponse } from '../server/api';
 import { amountValue } from '../ui/money';
 import {
   defaultSelection,
@@ -100,6 +100,29 @@ export function useDepositFlow() {
     setGooglePayReady(availability.googlePayReady);
     setApplePayReady(availability.applePayReady);
     return availability;
+  }, []);
+
+  /**
+   * Step 5 — reconcile after a redirect.
+   *
+   * The redirect replaced the page, so there is no state to come back to: the
+   * payment id was written to sessionStorage on the way out, and on the way
+   * back the payment is read with `force_sync` and reported in the lobby.
+   */
+  useEffect(() => {
+    const pendingPaymentId = takePendingPayment();
+    if (!pendingPaymentId) {
+      return;
+    }
+    syncPayment(pendingPaymentId)
+      .then(result => {
+        if (result.error_code || result.error_message) {
+          setError(`${result.error_code ?? 'error'}: ${result.error_message ?? ''}`);
+        } else {
+          setStatus(`Payment ${result.payment_id} · ${result.status}`);
+        }
+      })
+      .catch(e => setError(messageOf(e)));
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -202,6 +225,17 @@ export function useDepositFlow() {
         const outcome = await confirmDeposit(current, collected.body);
         // However it ended, the player goes back to the lobby to read it.
         setScreen('lobby');
+
+        if ('redirect' in outcome) {
+          // Step 5 — the issuer wants the player somewhere else first. The page
+          // is about to be replaced, so which payment is waiting is written
+          // down before leaving and picked up on the way back.
+          setStatus(outcome.message);
+          rememberPendingPayment(outcome.paymentId);
+          window.location.assign(outcome.redirect);
+          return;
+        }
+
         if (outcome.ok) {
           setStatus(outcome.message);
         } else {
@@ -423,3 +457,31 @@ export function useDepositFlow() {
 
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+/**
+ * The payment waiting on an authentication the player was redirected to.
+ *
+ * sessionStorage, not state: the redirect unloads the page, so this has to
+ * survive it. Wrapped because a private window can refuse storage, and an
+ * unreconciled payment is better than a crash on the way back.
+ */
+const PENDING_PAYMENT_KEY = 'pendingPaymentId';
+
+function rememberPendingPayment(paymentId: string) {
+  try {
+    window.sessionStorage.setItem(PENDING_PAYMENT_KEY, paymentId);
+  } catch {
+    // Storage unavailable; the player can still read the status by retrying.
+  }
+}
+
+function takePendingPayment(): string | null {
+  try {
+    const paymentId = window.sessionStorage.getItem(PENDING_PAYMENT_KEY);
+    window.sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+    return paymentId;
+  } catch {
+    return null;
+  }
+}
+

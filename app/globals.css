@@ -100,6 +100,17 @@ button:disabled { opacity: 0.45; cursor: default; }
   font-size: 16px;
 }
 
+/* The quieter sibling of .primary, for actions that are not the main one. */
+.secondary {
+  height: 48px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 16px;
+}
+
 .link {
   background: none;
   border: 0;
@@ -115,8 +126,10 @@ button:disabled { opacity: 0.45; cursor: default; }
  * boxes on the same line.
  */
 .method-row { display: flex; gap: 8px; align-items: center; }
+.method-row .method-pill { flex: 1; }
+/* Growing is the row's business, not the pill's: as a direct child of a column
+   a `flex-grow` pill stretches to the full height instead of keeping 48px. */
 .method-pill {
-  flex: 1;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -229,6 +242,7 @@ button:disabled { opacity: 0.45; cursor: default; }
   color: var(--muted);
   font-size: 12px;
 }
+.card .saved-row:first-child { border-top: 0; }
 .saved-row { border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; padding-right: 12px; }
 .row-main {
   flex: 1;
