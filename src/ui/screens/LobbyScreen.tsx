@@ -4,9 +4,12 @@ import { BALANCE, formatBalance } from '../money';
 
 type Props = {
   onStart: () => void;
+  onWithdraw: () => void;
   loading: boolean;
   status?: string | null;
   error?: string | null;
+  /** An informational line, e.g. for an action the demo does not implement. */
+  notice?: string | null;
 };
 
 /**
@@ -15,7 +18,14 @@ type Props = {
  * Starting the flow is what creates the payment intent — nothing is created
  * until the player asks to deposit.
  */
-export function LobbyScreen({ onStart, loading, status, error }: Props) {
+export function LobbyScreen({
+  onStart,
+  onWithdraw,
+  loading,
+  status,
+  error,
+  notice,
+}: Props) {
   return (
     <section className="screen">
       <header className="screen-header">
@@ -34,8 +44,15 @@ export function LobbyScreen({ onStart, loading, status, error }: Props) {
         ) : null}
       </div>
 
+      {notice ? <p className="muted small center">{notice}</p> : null}
+
       <button className="primary" onClick={onStart} disabled={loading}>
         {loading ? 'Creating payment…' : 'Deposit'}
+      </button>
+
+      {/* The other half of a cashier. Deposit stays the primary action. */}
+      <button className="secondary" onClick={onWithdraw} disabled={loading}>
+        Withdrawal
       </button>
     </section>
   );

@@ -261,3 +261,47 @@ function customerAcceptance() {
     online: { user_agent: navigator.userAgent },
   };
 }
+
+/** A method a payout can be sent to, from the customers API's own list. */
+export type PayoutMethod = {
+  /** The `payout_method_id` a withdrawal is created with. */
+  id: string;
+  customer_id?: string;
+  payment_method_type: string;
+  payment_method_subtype?: string;
+  is_default?: boolean;
+  last_used_at?: string;
+  created?: string;
+  payment_method_data?: {
+    card?: SavedCard;
+    wallet?: Record<string, { last4?: string; card_network?: string }>;
+  };
+};
+
+export type WithdrawalMethodsResponse = {
+  customer_payment_methods: PayoutMethod[];
+};
+
+export type PayoutResponse = {
+  payout_id?: string;
+  status?: string;
+  error_code?: string | null;
+  error_message?: string | null;
+  [key: string]: unknown;
+};
+
+/** Withdrawal W1 — the methods this player can be paid out to. */
+export function fetchWithdrawalMethods(): Promise<WithdrawalMethodsResponse> {
+  return request('/api/withdrawal-methods');
+}
+
+/** Withdrawal W2 — create the payout, in minor units. */
+export function createWithdrawal(
+  amount: number,
+  payoutMethodId: string,
+): Promise<PayoutResponse> {
+  return request('/api/withdraw', {
+    method: 'POST',
+    body: JSON.stringify({ amount, payout_method_id: payoutMethodId }),
+  });
+}

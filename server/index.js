@@ -9,6 +9,8 @@
  *   Step 2  POST /api/update-payment    put the player's amount on the intent
  *   Step 4  POST /api/confirm-payment   authorize, screen, then confirm
  *   Step 5  GET  /api/payments/:id      reconcile a payment that settled later
+ *   W1      GET  /api/withdrawal-methods where a payout can be sent
+ *   W2      POST /api/withdraw           create the payout
  *   opt     POST /api/capture-payment   manual capture
  *
  * Usage:
@@ -243,7 +245,7 @@ app.get("/api/create-payment", async (req, res, next) => {
   }
 
   const amount = 0;
-  const currency = "USD";
+  const currency = "CAD";
 
   try {
     const player_id = 'player_demo_001';
@@ -326,6 +328,97 @@ app.post("/api/update-payment", async (req, res, next) => {
       ...data,
       publishable_key: HS_PUBLISHABLE_KEY,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Withdrawal W1 — GET /api/withdrawal-methods
+ *
+ *   Server          -> Payments API    : /v1/customers/{player}/saved-payment-methods
+ *
+ * The methods a payout may be sent to. This is a different list from the one
+ * the deposit screen renders: it is the customers API's view, keyed by a
+ * payout-capable id ("0a_pm_…"), and each entry's "id" is the
+ * "payout_method_id" the payout below is created with.
+ *
+ * Same auth as the customers call it belongs to, not the payments one.
+ */
+app.get("/api/withdrawal-methods", async (req, res, next) => {
+  try {
+    const { status, data } = await hsFetch(
+      `/v1/customers/${encodeURIComponent("player_demo_001")}/saved-payment-methods`,
+      { auth: "customers" },
+    );
+    res.status(status).json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Withdrawal W2 — POST /api/withdraw  { amount, payout_method_id }
+ *
+ *   Server          -> PAM             : authorize        (stubbed above)
+ *   Server          -> Fraud screening : screen the payout (stubbed above)
+ *   Server          -> Payments API    : /payouts/create
+ *
+ * The mirror of a deposit: money leaves rather than arrives, so the same two
+ * checks belong in front of it. The app sends an amount and which stored method
+ * to pay out to — never an account number.
+ *
+ * `auto_fulfill: true` asks for the payout to be executed, not just created.
+ */
+app.post("/api/withdraw", async (req, res, next) => {
+  const { amount, payout_method_id: payoutMethodId } = req.body || {};
+  if (!amount || !payoutMethodId) {
+    return res
+      .status(400)
+      .json({ error: "amount and payout_method_id are required" });
+  }
+
+  try {
+    const authorization = await authorizeWithPam({ payment_id: null });
+    if (!authorization.approved) {
+      return res.status(402).json({ error: "Declined by PAM" });
+    }
+    const screening = await screenForFraud({ payment_id: null });
+    if (!screening.approved) {
+      return res.status(402).json({ error: "Declined by fraud screening" });
+    }
+
+    const { status, data } = await hsFetch("/payouts/create", {
+      method: "POST",
+      body: {
+        // Unique per withdrawal, so a retry is not mistaken for the same one.
+        merchant_order_reference_id: `withdrawal_${Date.now()}`,
+        amount,
+        confirm: true,
+        currency: "CAD",
+        customer_id: "player_demo_001",
+        profile_id: HS_PROFILE_ID,
+        payout_method_id: payoutMethodId,
+        auto_fulfill: true,
+        recurring: false,
+        entity_type: "Individual",
+        description: "Player withdrawal",
+        // DEMO DATA: a real integration sends the player's own billing details.
+        billing: {
+          address: {
+            city: "Delta",
+            country: "US",
+            line1: "line1",
+            zip: "10001",
+            state: "California",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: { number: "9999999999", country_code: null },
+        },
+      },
+    });
+    res.status(status).json(data);
   } catch (err) {
     next(err);
   }

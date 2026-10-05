@@ -228,8 +228,8 @@ to the lobby, which shows the result.
 | Status webhook + sync | Route exists on the server, nothing calls it |
 | Manual capture | Route exists; payments capture automatically |
 
-The amount is displayed in GBP while the intent is created in USD, because the
-design is a GBP screen and the sandbox profile is USD.
+The amount is displayed in GBP while the intent is created in CAD, because the
+design is a GBP screen and the sandbox profile is CAD.
 
 ---
 
