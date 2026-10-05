@@ -7,10 +7,13 @@ import { theme } from '../theme';
 
 type Props = {
   onStart: () => void;
+  onWithdraw: () => void;
   loading: boolean;
   /** Outcome of the last deposit, shown on the way back from confirm. */
   status?: string | null;
   error?: string | null;
+  /** An informational line, e.g. for an action the demo does not implement. */
+  notice?: string | null;
 };
 
 /**
@@ -19,7 +22,14 @@ type Props = {
  * Starting the flow is what creates the payment intent — nothing is created
  * until the player asks to deposit.
  */
-export function LobbyScreen({ onStart, loading, status, error }: Props) {
+export function LobbyScreen({
+  onStart,
+  onWithdraw,
+  loading,
+  status,
+  error,
+  notice,
+}: Props) {
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -40,6 +50,8 @@ export function LobbyScreen({ onStart, loading, status, error }: Props) {
         ) : null}
       </View>
 
+      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+
       <Pressable
         onPress={onStart}
         disabled={loading}
@@ -55,6 +67,20 @@ export function LobbyScreen({ onStart, loading, status, error }: Props) {
         ) : (
           <Text style={styles.startText}>Deposit</Text>
         )}
+      </Pressable>
+
+      {/* The other half of a cashier. Deposit stays the primary action. */}
+      <Pressable
+        onPress={onWithdraw}
+        disabled={loading}
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.withdrawButton,
+          loading && styles.disabled,
+          pressed && styles.pressed,
+        ]}
+      >
+        <Text style={styles.withdrawText}>Withdrawal</Text>
       </Pressable>
     </SafeAreaView>
   );
@@ -89,6 +115,23 @@ const styles = StyleSheet.create({
     backgroundColor: theme.accent,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  withdrawButton: {
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.border,
+    backgroundColor: theme.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  withdrawText: { color: theme.text, fontSize: 16, fontWeight: '600' },
+  notice: {
+    color: theme.muted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   disabled: { opacity: 0.45 },
   startText: { color: theme.accentText, fontSize: 16, fontWeight: '700' },

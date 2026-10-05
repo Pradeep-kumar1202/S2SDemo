@@ -44,6 +44,8 @@ export function useDepositFlow() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  /** An informational line for the lobby, separate from errors. */
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [amount, setAmount] = useState('10');
 
@@ -100,6 +102,7 @@ export function useDepositFlow() {
     setCreating(true);
     setError(null);
     setStatus(null);
+    setNotice(null);
     try {
       const created = await createIntent();
       setPayment(created);
@@ -312,6 +315,11 @@ export function useDepositFlow() {
 
     lobbyProps: {
       onStart: startDeposit,
+      // Withdrawal is the cashier's other half, and out of scope here: this
+      // demo implements the deposit sequence only.
+      onWithdraw: () =>
+        setNotice('Withdrawals are not part of this demo — deposits only.'),
+      notice,
       loading: creating,
       status,
       error,

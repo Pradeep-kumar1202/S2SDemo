@@ -21,26 +21,44 @@ import { StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useDepositFlow } from './src/flow/useDepositFlow';
+import { useWithdrawalFlow } from './src/flow/useWithdrawalFlow';
 import { DepositScreen } from './src/ui/screens/DepositScreen';
 import { LobbyScreen } from './src/ui/screens/LobbyScreen';
 import { SelectPaymentMethodScreen } from './src/ui/screens/SelectPaymentMethodScreen';
+import { SelectWithdrawalMethodScreen } from './src/ui/screens/SelectWithdrawalMethodScreen';
+import { WithdrawalScreen } from './src/ui/screens/WithdrawalScreen';
 import { theme } from './src/ui/theme';
 
 function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" />
-      <Deposit />
+      <Cashier />
     </SafeAreaProvider>
   );
 }
 
 /**
- * The three screens of the flow. Which one shows is the flow's own state, so
- * this component is only a router — every decision lives in useDepositFlow.
+ * The screens of both journeys. Which one shows is each flow's own state, so
+ * this component is only a router — every decision lives in the hooks.
+ *
+ * The two journeys are separate hooks rather than one: they share the lobby and
+ * nothing else. A deposit creates an intent and collects an instrument; a
+ * withdrawal names a stored one and creates a payout.
  */
-function Deposit() {
+function Cashier() {
   const flow = useDepositFlow();
+  const withdrawal = useWithdrawalFlow({ onFinished: () => {} });
+
+  if (withdrawal.active) {
+    return withdrawal.screen === 'methods' ? (
+      <SelectWithdrawalMethodScreen {...withdrawal.sheetProps} />
+    ) : (
+      <View style={styles.root}>
+        <WithdrawalScreen {...withdrawal.amountProps} />
+      </View>
+    );
+  }
 
   if (flow.screen === 'methods' && flow.payment) {
     return <SelectPaymentMethodScreen payment={flow.payment} {...flow.sheetProps} />;
@@ -54,7 +72,16 @@ function Deposit() {
     );
   }
 
-  return <LobbyScreen {...flow.lobbyProps} />;
+  return (
+    <LobbyScreen
+      {...flow.lobbyProps}
+      onWithdraw={withdrawal.start}
+      // Whichever journey ran last is what the lobby reports.
+      status={withdrawal.status ?? flow.lobbyProps.status}
+      error={withdrawal.error ?? flow.lobbyProps.error}
+      notice={withdrawal.status ? null : flow.lobbyProps.notice}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

@@ -4,8 +4,7 @@
 <dict>
 	<key>com.apple.developer.in-app-payments</key>
 	<array>
-		<!-- Replace with your Apple Pay merchant ID (must match the connector's merchant_identifier in Hyperswitch). -->
-		<string>merchant.com.s2sdemo</string>
+		<string>merchant.com.stripe.sang</string>
 	</array>
 </dict>
 </plist>

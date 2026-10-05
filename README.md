@@ -279,8 +279,8 @@ called so the shape of the flow stays honest.
 | Manual capture | `server/index.js:193` | Route exists; payments capture automatically |
 
 One more thing not to copy: the amount is displayed in GBP while the intent is
-created in USD, because the design is a GBP screen and the sandbox profile is
-USD.
+created in CAD, because the design is a GBP screen and the sandbox profile is
+CAD.
 
 ---
 
