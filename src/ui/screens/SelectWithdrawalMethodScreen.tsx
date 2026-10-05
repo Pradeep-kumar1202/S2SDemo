@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +23,10 @@ type Props = {
   methods: PayoutMethod[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** The id the Interac row carries; stored methods carry their own. */
+  interacId: string;
+  interacEmail: string;
+  onInteracEmailChange: (email: string) => void;
   onBack: () => void;
   amount: number;
   onWithdraw: () => void;
@@ -41,6 +46,9 @@ export function SelectWithdrawalMethodScreen({
   methods,
   selectedId,
   onSelect,
+  interacId,
+  interacEmail,
+  onInteracEmailChange,
   onBack,
   amount,
   onWithdraw,
@@ -97,6 +105,54 @@ export function SelectWithdrawalMethodScreen({
             This player has no method a payout can be sent to.
           </Text>
         )}
+
+        {/*
+          Interac is not a stored method: there is nothing on file to name, so
+          the payout carries the email instead. Selecting it opens that field
+          in place, the way the deposit sheet opens its card form.
+        */}
+        <Text style={styles.sectionTitle}>Other</Text>
+        <View
+          style={[
+            styles.card,
+            selectedId === interacId && styles.cardSelected,
+          ]}
+        >
+          <Pressable
+            onPress={() => onSelect(interacId)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: selectedId === interacId }}
+            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+          >
+            <View
+              style={[
+                styles.radio,
+                selectedId === interacId && styles.radioSelected,
+              ]}
+            >
+              {selectedId === interacId ? <View style={styles.radioDot} /> : null}
+            </View>
+            <CardBrandMark network="interac" />
+            <Text style={styles.label}>Interac</Text>
+          </Pressable>
+
+          {selectedId === interacId ? (
+            <View style={styles.interacFields}>
+              <Text style={styles.fieldLabel}>Email for the transfer</Text>
+              <TextInput
+                value={interacEmail}
+                onChangeText={onInteracEmailChange}
+                placeholder="john.doe@example.com"
+                placeholderTextColor={theme.muted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.interacInput}
+                accessibilityLabel="Email for the Interac transfer"
+              />
+            </View>
+          ) : null}
+        </View>
 
         {error ? (
           <View style={styles.banner}>
@@ -175,6 +231,26 @@ const styles = StyleSheet.create({
     backgroundColor: theme.accent,
   },
   label: { color: theme.text, fontSize: 13, flex: 1 },
+  cardSelected: { borderColor: theme.accent },
+  sectionTitle: {
+    color: theme.text,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  interacFields: { paddingHorizontal: 12, paddingBottom: 12, gap: 4 },
+  fieldLabel: { color: theme.muted, fontSize: 11 },
+  interacInput: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.border,
+    backgroundColor: theme.surfaceAlt,
+    paddingHorizontal: 12,
+    color: theme.text,
+    fontSize: 15,
+  },
   hint: { color: theme.muted, fontSize: 12, textAlign: 'center' },
   banner: { backgroundColor: theme.dangerBg, borderRadius: 8, padding: 10 },
   bannerText: { color: theme.danger, fontSize: 12 },

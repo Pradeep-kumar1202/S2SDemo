@@ -269,9 +269,9 @@ app.get('/api/create-payment', async (req, res, next) => {
             line2: "Harrison Street",
             line3: "Harrison Street",
             city: "San Fransico",
-            state: "California",
+            // state: "California",
             zip: "94122",
-            country: "US",
+            country: "CA",
             first_name: "joseph",
             last_name: "Doe",
           },
@@ -372,12 +372,19 @@ app.get('/api/withdrawal-methods', async (req, res, next) => {
  * `auto_fulfill: true` asks for the payout to be executed, not just created.
  */
 app.post('/api/withdraw', async (req, res, next) => {
-  const { amount, payout_method_id: payoutMethodId } = req.body || {};
-  if (!amount || !payoutMethodId) {
-    return res
-      .status(400)
-      .json({ error: 'amount and payout_method_id are required' });
+  const {
+    amount,
+    payout_method_id: payoutMethodId,
+    interac_email: interacEmail,
+  } = req.body || {};
+
+  if (!amount || (!payoutMethodId && !interacEmail)) {
+    return res.status(400).json({
+      error: 'amount and either payout_method_id or interac_email are required',
+    });
   }
+
+  const toInterac = Boolean(interacEmail);
 
   try {
     const authorization = await authorizeWithPam({ payment_id: null });
@@ -395,23 +402,29 @@ app.post('/api/withdraw', async (req, res, next) => {
         // Unique per withdrawal, so a retry is not mistaken for the same one.
         merchant_order_reference_id: `withdrawal_${Date.now()}`,
         amount,
-        confirm: true,
         currency: 'CAD',
         customer_id: 'player_demo_001',
         profile_id: HS_PROFILE_ID,
-        payout_method_id: payoutMethodId,
+        confirm: true,
         auto_fulfill: true,
         recurring: false,
         entity_type: 'Individual',
         description: 'Player withdrawal',
-        // DEMO DATA: a real integration sends the player's own billing details.
+        ...(toInterac
+          ? {
+              payout_type: "bank_redirect",
+              payout_method_data: {
+                bank_redirect: { interac: { email: interacEmail } },
+              },
+            }
+          : { payout_method_id: payoutMethodId }),
         billing: {
           address: {
             city: 'Delta',
-            country: 'US',
+            country: 'CA',
             line1: 'line1',
             zip: '10001',
-            state: 'California',
+            // state: 'California',
             first_name: 'John',
             last_name: 'Doe',
           },
