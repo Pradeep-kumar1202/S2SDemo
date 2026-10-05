@@ -66,7 +66,7 @@ export function SelectWithdrawalMethodScreen({
       <ScrollView contentContainerStyle={styles.content}>
         {methods.length > 0 ? (
           <View style={styles.card}>
-            {methods.map(method => {
+            {methods.map((method, index) => {
               const selected = method.id === selectedId;
               return (
                 <Pressable
@@ -76,6 +76,8 @@ export function SelectWithdrawalMethodScreen({
                   accessibilityState={{ selected }}
                   style={({ pressed }) => [
                     styles.row,
+                    // Only between rows: the card's own border is the top edge.
+                    index > 0 && styles.rowDivider,
                     pressed && styles.pressed,
                   ]}
                 >
@@ -152,10 +154,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.border,
+    // Matches the deposit sheet's saved rows, so the two lists sit alike.
+    paddingVertical: 10,
   },
+  rowDivider: { borderTopWidth: 1, borderTopColor: theme.border },
   radio: {
     width: 16,
     height: 16,

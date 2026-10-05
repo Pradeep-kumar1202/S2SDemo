@@ -16,7 +16,14 @@ export type CollectOutcome =
   | { ok: true; body: ConfirmPaymentData }
   | { ok: false; message: string };
 
-/** The result of the confirm step, as the lobby screen reports it. */
+/**
+ * The result of the confirm step.
+ *
+ * `redirect` is the third answer a confirm can give: the payment is neither
+ * done nor failed, the issuer or the method wants the player somewhere else
+ * first. The flow sends them, then reconciles when they come back.
+ */
 export type DepositOutcome =
   | { ok: true; message: string }
-  | { ok: false; message: string };
+  | { ok: false; message: string }
+  | { redirect: string; paymentId: string; message: string };

@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Linking } from 'react-native';
 import type { CardFormHandle } from '@juspay-tech/react-native-hyperswitch-payment-methods';
 
-import type { CreatePaymentResponse } from '../server/api';
+import { syncPayment, type CreatePaymentResponse } from '../server/api';
 import { amountValue } from '../ui/money';
 import {
   defaultSelection,
@@ -46,6 +47,8 @@ export function useDepositFlow() {
   const [status, setStatus] = useState<string | null>(null);
   /** An informational line for the lobby, separate from errors. */
   const [notice, setNotice] = useState<string | null>(null);
+  /** A payment left mid-authentication, waiting to be reconciled. */
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
 
   const [amount, setAmount] = useState('10');
 
@@ -93,6 +96,36 @@ export function useDepositFlow() {
     setApplePayReady(availability.applePayReady);
     return availability;
   }, []);
+
+  /**
+   * Step 5 — reconcile after a redirect.
+   *
+   * The app was in the background while the challenge happened, so there is no
+   * callback to wait for: when it comes forward again, the payment is read back
+   * with `force_sync` and the lobby reports whatever it actually says.
+   */
+  useEffect(() => {
+    if (!pendingPaymentId) {
+      return;
+    }
+    const subscription = AppState.addEventListener('change', async next => {
+      if (next !== 'active') {
+        return;
+      }
+      try {
+        const result = await syncPayment(pendingPaymentId);
+        setPendingPaymentId(null);
+        if (result.error_code || result.error_message) {
+          setError(`${result.error_code ?? 'error'}: ${result.error_message ?? ''}`);
+        } else {
+          setStatus(`Payment ${result.payment_id} · ${result.status}`);
+        }
+      } catch (e) {
+        setError(messageOf(e));
+      }
+    });
+    return () => subscription.remove();
+  }, [pendingPaymentId]);
 
   // ---------------------------------------------------------------------------
   // Step 1 — create the intent when the player asks to deposit
@@ -189,6 +222,16 @@ export function useDepositFlow() {
         const outcome = await confirmDeposit(current, collected.body);
         // However it ended, the player goes back to the lobby to read it.
         setScreen('lobby');
+
+        if ('redirect' in outcome) {
+          // Step 5 — the issuer wants the player somewhere else first. Send
+          // them, remember which payment is waiting, and reconcile on return.
+          setStatus(outcome.message);
+          setPendingPaymentId(outcome.paymentId);
+          Linking.openURL(outcome.redirect).catch(e => setError(messageOf(e)));
+          return;
+        }
+
         if (outcome.ok) {
           setStatus(outcome.message);
         } else {
@@ -242,11 +285,30 @@ export function useDepositFlow() {
         setScreen('methods');
         return;
       }
-      return confirmWith(
-        () =>
-          tokenizeCard(cardFormRef.current, {
-            paymentMethodType: firstTypeFor(methodList, selected.paymentMethod),
+
+      const paymentMethodType = firstTypeFor(methodList, selected.paymentMethod);
+
+      // A method with no fields — a bank redirect, say — is confirmed by naming
+      // it: the empty `payment_method_data` is how the API expects the choice
+      // to arrive. What comes back is a `next_action`, which step 5 follows.
+      if (!collectsCardFields(selected)) {
+        return confirmWith(
+          async () => ({
+            ok: true,
+            body: {
+              payment_method: selected.paymentMethod,
+              payment_method_type: paymentMethodType,
+              payment_method_data: {
+                [selected.paymentMethod]: { [paymentMethodType]: {} },
+              },
+            },
           }),
+          current,
+        );
+      }
+
+      return confirmWith(
+        () => tokenizeCard(cardFormRef.current, { paymentMethodType }),
         current,
       );
     }
@@ -307,7 +369,9 @@ export function useDepositFlow() {
     payment != null &&
     selected != null &&
     value > 0 &&
-    (selected.kind !== 'new_card' || screen !== 'methods' || cardComplete);
+    // Only a method with fields to fill waits on them. A bank redirect and
+    // the other APMs collect nothing here, so there is nothing to complete.
+    (!collectsCardFields(selected) || screen !== 'methods' || cardComplete);
 
   return {
     screen,
@@ -368,3 +432,14 @@ export function useDepositFlow() {
 
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+/**
+ * Whether a chosen method has card fields the player must fill first.
+ *
+ * Today that is only `card`; every other entry in the sheet's Other section —
+ * bank redirects and the rest — carries no form, so waiting on one would leave
+ * its Deposit button disabled forever.
+ */
+function collectsCardFields(selected: SelectedMethod | null): boolean {
+  return selected?.kind === 'new_card' && selected.paymentMethod === 'card';
+}

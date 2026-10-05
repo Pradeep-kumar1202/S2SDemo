@@ -215,6 +215,16 @@ export function updatePayment(
   });
 }
 
+/**
+ * Step 5 — read the payment back after the player has been away.
+ *
+ * `force_sync` asks the connector rather than trusting the stored status, which
+ * is the point: the app was not watching while the challenge happened.
+ */
+export function syncPayment(paymentId: string): Promise<ConfirmPaymentResponse> {
+  return request(`/api/payments/${encodeURIComponent(paymentId)}`);
+}
+
 /** Confirms a payment with a wallet token or a saved-card token. */
 export function confirmPayment(
   paymentId: string,
