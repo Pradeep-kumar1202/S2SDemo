@@ -12,6 +12,10 @@ type Props = {
   methods: PayoutMethod[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** The id the Interac row carries; stored methods carry their own. */
+  interacId: string;
+  interacEmail: string;
+  onInteracEmailChange: (email: string) => void;
   onBack: () => void;
   amount: number;
   onWithdraw: () => void;
@@ -31,6 +35,9 @@ export function SelectWithdrawalMethodScreen({
   methods,
   selectedId,
   onSelect,
+  interacId,
+  interacEmail,
+  onInteracEmailChange,
   onBack,
   amount,
   onWithdraw,
@@ -73,6 +80,46 @@ export function SelectWithdrawalMethodScreen({
             This player has no method a payout can be sent to.
           </p>
         )}
+
+        {/*
+          Interac is not a stored method: there is nothing on file to name, so
+          the payout carries the email instead. Selecting it opens that field
+          in place, the way the deposit sheet opens its card form.
+        */}
+        <p className="section-title">Other</p>
+        <div className={selectedId === interacId ? 'card card-selected' : 'card'}>
+          <div className="saved-row">
+            <button
+              className="row-main"
+              onClick={() => onSelect(interacId)}
+              role="radio"
+              aria-checked={selectedId === interacId}
+            >
+              <span
+                className={selectedId === interacId ? 'radio radio-on' : 'radio'}
+              />
+              <CardBrandMark network="interac" />
+              <span className="grow">Interac</span>
+            </button>
+          </div>
+
+          {selectedId === interacId ? (
+            <div className="card-fields">
+              <div className="field">
+                <label htmlFor="interac-email">Email for the transfer</label>
+                <input
+                  id="interac-email"
+                  type="email"
+                  className="text-input"
+                  value={interacEmail}
+                  onChange={event => onInteracEmailChange(event.target.value)}
+                  placeholder="john.doe@example.com"
+                  autoComplete="email"
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         {error ? <p className="banner">{error}</p> : null}
       </div>

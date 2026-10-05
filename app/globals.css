@@ -267,6 +267,17 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 .card-fields { padding: 0 12px 12px; }
 
+/* A field the page draws itself, matching the SDK's own inputs. */
+.text-input {
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  padding: 0 12px;
+  color: var(--text);
+  font-size: 15px;
+}
+
 .field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
 .field label { color: var(--muted); font-size: 11px; }
 .field-row { display: flex; gap: 12px; }

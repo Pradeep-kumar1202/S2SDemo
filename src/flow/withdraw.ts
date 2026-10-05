@@ -1,4 +1,4 @@
-import { createWithdrawal, type PayoutMethod } from '../server/api';
+import { createWithdrawal, type WithdrawalTarget } from '../server/api';
 import { toMinorUnits } from './updateIntent';
 
 /**
@@ -12,8 +12,16 @@ import { toMinorUnits } from './updateIntent';
  *   Server          -> Payments API    : /payouts/create
  *
  * The mirror of a deposit's confirm, and the same division of labour: the app
- * names an amount and a stored method, never an account number, and the create
- * call needs the secret key so it happens on the server.
+ * names an amount and where the money goes, and the create call needs the
+ * secret key so it happens on the server.
+ *
+ * Two kinds of destination, and the difference is the whole point of the
+ * `WithdrawalTarget` union:
+ *
+ *   saved    a method already stored against the player, named by id — the app
+ *            never sees an account number
+ *   interac  a bank redirect, which has nothing stored: the payout carries the
+ *            email the money is sent to, so that much does pass through here
  *
  * Unlike a deposit there is no intent to update first — a payout carries its
  * own amount — so this is the only call the journey makes.
@@ -23,10 +31,10 @@ export type WithdrawalOutcome =
   | { ok: false; message: string };
 
 export async function withdraw(
-  method: PayoutMethod,
+  target: WithdrawalTarget,
   amount: number,
 ): Promise<WithdrawalOutcome> {
-  const result = await createWithdrawal(toMinorUnits(amount), method.id);
+  const result = await createWithdrawal(toMinorUnits(amount), target);
 
   if (result.error_code || result.error_message) {
     return {

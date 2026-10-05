@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
-import type { PayoutMethod } from '../server/api';
+import type { PayoutMethod, WithdrawalTarget } from '../server/api';
 import { amountValue } from '../ui/money';
 import {
   listWithdrawalMethods,
@@ -33,7 +33,9 @@ export function useWithdrawalFlow({ onFinished }: { onFinished: () => void }) {
   const [screen, setScreen] = useState<WithdrawalScreen>('amount');
 
   const [methods, setMethods] = useState<PayoutMethod[]>([]);
+  /** A stored method's id, or 'interac' for the bank redirect. */
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [interacEmail, setInteracEmail] = useState('');
 
   const [amount, setAmount] = useState('10');
   const [loading, setLoading] = useState(false);
@@ -42,7 +44,18 @@ export function useWithdrawalFlow({ onFinished }: { onFinished: () => void }) {
   const [status, setStatus] = useState<string | null>(null);
 
   const value = amountValue(amount);
+  const toInterac = selectedId === INTERAC;
   const selected = methods.find(method => method.id === selectedId) ?? null;
+  // Interac is the one destination that carries details rather than an id.
+  const target = useMemo<WithdrawalTarget | null>(
+    () =>
+      toInterac
+        ? { kind: 'interac', email: interacEmail.trim() }
+        : selected
+          ? { kind: 'saved', payoutMethodId: selected.id }
+          : null,
+    [interacEmail, selected, toInterac],
+  );
 
   // ---------------------------------------------------------------------------
   // W1 — the methods a payout can be sent to
@@ -76,14 +89,14 @@ export function useWithdrawalFlow({ onFinished }: { onFinished: () => void }) {
   // ---------------------------------------------------------------------------
 
   const confirmWithdrawal = useCallback(async () => {
-    if (!selected) {
+    if (!target) {
       setScreen('methods');
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const outcome = await withdraw(selected, value);
+      const outcome = await withdraw(target, value);
       if (outcome.ok) {
         // However it ended, the player reads it back in the lobby.
         setStatus(outcome.message);
@@ -97,9 +110,11 @@ export function useWithdrawalFlow({ onFinished }: { onFinished: () => void }) {
     } finally {
       setBusy(false);
     }
-  }, [onFinished, selected, value]);
+  }, [onFinished, target, value]);
 
-  const canWithdraw = selected != null && value > 0;
+  const canWithdraw =
+    value > 0 &&
+    (toInterac ? looksLikeEmail(interacEmail) : selected != null);
 
   return {
     active,
@@ -114,12 +129,18 @@ export function useWithdrawalFlow({ onFinished }: { onFinished: () => void }) {
       amount,
       onAmountChange: setAmount,
       onQuickAmount: setAmount,
-      selectionLabel: selected
-        ? payoutMethodLabel(selected)
-        : loading
-          ? 'Loading methods…'
-          : 'No payout method',
-      selectionNetwork: selected ? payoutMethodNetwork(selected) : null,
+      selectionLabel: toInterac
+        ? 'Interac'
+        : selected
+          ? payoutMethodLabel(selected)
+          : loading
+            ? 'Loading methods…'
+            : 'No payout method',
+      selectionNetwork: toInterac
+        ? null
+        : selected
+          ? payoutMethodNetwork(selected)
+          : null,
       onOpenMethods: () => setScreen('methods'),
       onBack: cancel,
       onWithdraw: confirmWithdrawal,
@@ -136,6 +157,9 @@ export function useWithdrawalFlow({ onFinished }: { onFinished: () => void }) {
         setSelectedId(id);
         setError(null);
       },
+      interacId: INTERAC,
+      interacEmail,
+      onInteracEmailChange: setInteracEmail,
       onBack: () => setScreen('amount'),
       amount: value,
       onWithdraw: confirmWithdrawal,
@@ -148,3 +172,11 @@ export function useWithdrawalFlow({ onFinished }: { onFinished: () => void }) {
 
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+/** The id the Interac row carries, where a stored method would carry its own. */
+export const INTERAC = 'interac';
+
+/** Enough of a check to keep an obviously wrong address out of a payout. */
+function looksLikeEmail(value: string): boolean {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim());
+}

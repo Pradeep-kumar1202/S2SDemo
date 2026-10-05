@@ -305,13 +305,26 @@ export function fetchWithdrawalMethods(): Promise<WithdrawalMethodsResponse> {
   return request('/api/withdrawal-methods');
 }
 
+/**
+ * Where a payout is going: a method already stored against the player, or a
+ * bank redirect that carries its own details.
+ */
+export type WithdrawalTarget =
+  | { kind: 'saved'; payoutMethodId: string }
+  | { kind: 'interac'; email: string };
+
 /** Withdrawal W2 — create the payout, in minor units. */
 export function createWithdrawal(
   amount: number,
-  payoutMethodId: string,
+  target: WithdrawalTarget,
 ): Promise<PayoutResponse> {
   return request('/api/withdraw', {
     method: 'POST',
-    body: JSON.stringify({ amount, payout_method_id: payoutMethodId }),
+    body: JSON.stringify({
+      amount,
+      ...(target.kind === 'saved'
+        ? { payout_method_id: target.payoutMethodId }
+        : { interac_email: target.email }),
+    }),
   });
 }
