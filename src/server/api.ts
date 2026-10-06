@@ -235,17 +235,51 @@ export function confirmPayment(
     body: JSON.stringify({
       payment_id: paymentId,
       ...body,
-      customer_acceptance: {
-        acceptance_type: "online",
-        accepted_at: "2026-10-01T08:47:51.331Z",
-        online: {
-          user_agent:
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
-        },
-      },
+      customer_acceptance: customerAcceptance(),
+      browser_info: BROWSER_INFO,
     }),
   });
 }
+
+/**
+ * The player's acceptance, recorded as they press Deposit.
+ *
+ * `accepted_at` is read now rather than written down once: a fixed timestamp
+ * would claim every player accepted at the same moment.
+ */
+function customerAcceptance() {
+  return {
+    acceptance_type: 'online',
+    accepted_at: new Date().toISOString(),
+    online: { user_agent: USER_AGENT },
+  };
+}
+
+/**
+ * Device details the connector uses for risk checks, sent beside the
+ * acceptance.
+ *
+ * DEMO DATA. There is no browser here to ask — React Native has no `navigator`
+ * or `window.screen` — so these are constants. A real integration reports the
+ * device: `Dimensions.get('window')` for the screen, the locale for `language`,
+ * and the timezone offset for `time_zone`.
+ */
+const USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36';
+
+const BROWSER_INFO = {
+  user_agent: USER_AGENT,
+  accept_header:
+    'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+  language: 'en-US',
+  color_depth: 24,
+  screen_height: 723,
+  screen_width: 1536,
+  time_zone: 0,
+  java_enabled: true,
+  java_script_enabled: true,
+  ip_address: '127.0.0.1',
+};
 
 /** A method a payout can be sent to, from the customers API's own list. */
 export type PayoutMethod = {

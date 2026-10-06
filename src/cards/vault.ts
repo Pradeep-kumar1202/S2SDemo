@@ -24,7 +24,8 @@ export function getHyper(publishableKey: string): Promise<HyperswitchInstance> {
     instanceKey = publishableKey;
     instance = Hyperswitch.init({
       publishableKey,
-      environment: environmentFor(publishableKey),
+      // environment: environmentFor(publishableKey),
+      customEndpoints: {commonEndpoint: "https://eu.hyperswitch.io/api"}
     });
   }
   return instance;
