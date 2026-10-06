@@ -256,6 +256,7 @@ export function confirmPayment(
       payment_id: paymentId,
       ...body,
       customer_acceptance: customerAcceptance(),
+      browser_info: browserInfo(),
     }),
   });
 }
@@ -269,6 +270,44 @@ function customerAcceptance() {
     acceptance_type: "online",
     accepted_at: new Date().toISOString(),
     online: { user_agent: navigator.userAgent },
+  };
+}
+
+/**
+ * Device details the connector uses for risk checks, sent beside the
+ * acceptance.
+ *
+ * Read from the browser rather than written down: a constant would describe
+ * whatever machine the demo was built on, which is the opposite of what a risk
+ * check wants — except `ip_address`, which no page can read.
+ */
+function browserInfo() {
+  return {
+    // user_agent: navigator.userAgent,
+    // accept_header:
+    //   "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+    // language: navigator.language,
+    // color_depth: window.screen.colorDepth,
+    // screen_height: window.screen.height,
+    // screen_width: window.screen.width,
+    // // Minutes behind UTC, as the API expects: UTC+5:30 is -330.
+    // time_zone: new Date().getTimezoneOffset(),
+    // java_enabled: false,
+    // java_script_enabled: true,
+    // // DEMO DATA: a page cannot read its own IP. A real integration fills this
+    // // on the server from the request, which is the address that matters.
+    // ip_address: "127.0.0.1",
+
+        "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "ip_address": "192.168.1.1",
+        "java_enabled": false,
+        "java_script_enabled": true,
+        "language": "en-US",
+        "color_depth": 24,
+        "screen_height": 1080,
+        "screen_width": 1920,
+        "time_zone": 330,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
   };
 }
 

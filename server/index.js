@@ -48,6 +48,7 @@ app.use((req, _res, next) => {
   next();
 });
 
+const player_id = 'player_demo_0001';
 const HS_BASE_URL = process.env.HYPERSWITCH_BASE_URL;
 const HS_API_KEY = process.env.HYPERSWITCH_API_KEY;
 const HS_PUBLISHABLE_KEY = process.env.HYPERSWITCH_PUBLISHABLE_KEY;
@@ -248,7 +249,6 @@ app.get("/api/create-payment", async (req, res, next) => {
   const currency = "CAD";
 
   try {
-    const player_id = 'player_demo_001';
     await ensureCustomer(player_id);
 
     const { status, data } = await hsFetch("/payments", {
@@ -260,7 +260,7 @@ app.get("/api/create-payment", async (req, res, next) => {
         customer_id: player_id,
         description: 'test payment',
         authentication_type: "no_three_ds",
-        setup_future_usage: "off_session",
+        setup_future_usage: "on_session",
         billing: {
           address: {
             line1: "1467",
@@ -348,7 +348,7 @@ app.post("/api/update-payment", async (req, res, next) => {
 app.get("/api/withdrawal-methods", async (req, res, next) => {
   try {
     const { status, data } = await hsFetch(
-      `/v1/customers/${encodeURIComponent("player_demo_001")}/saved-payment-methods`,
+      `/v1/customers/${encodeURIComponent(player_id)}/saved-payment-methods`,
       { auth: "customers" },
     );
     res.status(status).json(data);
@@ -403,8 +403,8 @@ app.post("/api/withdraw", async (req, res, next) => {
         amount,
         // Interac settles in Canadian dollars; a stored method takes the
         // account's own currency.
-        currency: toInterac ? "CAD" : "USD",
-        customer_id: "player_demo_001",
+        currency: "CAD",
+        customer_id: player_id,
         profile_id: HS_PROFILE_ID,
         confirm: true,
         auto_fulfill: true,
