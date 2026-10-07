@@ -10,7 +10,7 @@
     "server": "node server/index.js"
   },
   "dependencies": {
-    "@juspay-tech/hyper-js": "^2.1.0",
+    "@juspay-tech/hyper-js": "^2.2.0",
     "@juspay-tech/react-hyper-js": "^2.10.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.0",
