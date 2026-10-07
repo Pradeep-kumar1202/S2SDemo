@@ -9,7 +9,7 @@ import { toCamelCaseKeys } from '../wallets/keyCase';
 
 /** Sandbox publishable keys (pk_snd_) talk to the sandbox host. */
 const environmentFor = (publishableKey: string) =>
-  publishableKey.startsWith('pk_prd_') ? ('PROD' as const) : ('SANDBOX' as const);
+  publishableKey.startsWith('pk_prd_') ? ('PROD_EU' as const) : ('SANDBOX' as const);
 
 let instance: Promise<HyperswitchInstance> | null = null;
 let instanceKey: string | null = null;
@@ -24,8 +24,7 @@ export function getHyper(publishableKey: string): Promise<HyperswitchInstance> {
     instanceKey = publishableKey;
     instance = Hyperswitch.init({
       publishableKey,
-      // environment: environmentFor(publishableKey),
-      customEndpoints: {commonEndpoint: "https://eu.hyperswitch.io/api"}
+      environment: environmentFor(publishableKey),
     });
   }
   return instance;
