@@ -10,6 +10,7 @@ import {
   googlePayEnvironment,
   isReadyToPay,
   payWithGooglePay,
+  supportsNetworkToken,
 } from '../wallets/googlePay';
 import type { CollectOutcome } from './types';
 import { toMinorUnits } from './updateIntent';
@@ -28,6 +29,13 @@ import { toMinorUnits } from './updateIntent';
  * which confirms it — the browser never confirms the payment itself, so the
  * authorization and fraud checks stay in front of every payment.
  *
+ * On a sandbox key the session decides whether to offer it, and the browser is
+ * not asked. Google's `isReadyToPay` answers for the browser it is running in,
+ * and because this demo takes network tokens only, it says no on any browser
+ * without a card already tokenized in Google Pay — which would hide the button
+ * on most machines a demo is read on. In PRODUCTION that answer is the right
+ * one and is still honoured. See `walletAvailability`.
+ *
  * Apple Pay works the same way, and is offered only when the token carries a
  * validated merchant session and the browser is Safari. One constraint is
  * Apple's and cannot be worked around: that session is issued for a specific,
@@ -35,17 +43,27 @@ import { toMinorUnits } from './updateIntent';
  * start it anywhere else. See `src/wallets/applePay.ts`.
  */
 
-/** Whether each wallet can be used right now: a token, and a device that can pay. */
+/**
+ * Whether each wallet can be used right now.
+ *
+ * Google Pay needs a session token, and then either the session's own word (in
+ * TEST) or the browser's (in PRODUCTION) — see the note above. Either way a
+ * session that allows only `PAN_ONLY` is not offered, since nothing here can
+ * accept a raw card number from a wallet.
+ *
+ * Apple Pay is synchronous: there is nothing to await, because only the browser
+ * can answer and it answers immediately.
+ */
 export async function walletAvailability(payment: CreatePaymentResponse): Promise<{
   googlePayReady: boolean;
   applePayReady: boolean;
 }> {
   const googlePayToken = findWalletToken(payment, 'google_pay');
+  const environment = googlePayEnvironment(payment.publishable_key ?? '');
   const googlePayReady = googlePayToken
-    ? await isReadyToPay(
-        googlePayToken,
-        googlePayEnvironment(payment.publishable_key ?? ''),
-      )
+    ? environment === 'TEST'
+      ? supportsNetworkToken(googlePayToken)
+      : await isReadyToPay(googlePayToken, environment)
     : false;
 
   const applePayReady = canPayWithApplePay(findWalletToken(payment, 'apple_pay'));

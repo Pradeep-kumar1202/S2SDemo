@@ -160,6 +160,13 @@ session that allows only `PAN_ONLY` means Google Pay is not offered. The network
 token it returns is confirmed by the server, so the browser never confirms the
 payment itself.
 
+On a sandbox key (`pk_snd_`) the button appears whenever the session allows
+network tokens, and Google's `isReadyToPay` is not called: asking it would hide
+the button on any browser with no card tokenized in Google Pay, which is most of
+them. Google's own sheet may then open and report that it has nothing to offer —
+that is Google answering, not the demo failing. A production key (`pk_prd_`)
+asks the browser as before.
+
 *Apple Pay* (`src/wallets/applePay.ts`) opens an `ApplePaySession` from the
 token's `payment_request_data`. Because the server fetched a validated merchant
 session (`delayed_session_token: false`), `onvalidatemerchant` hands
