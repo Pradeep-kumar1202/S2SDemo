@@ -47,6 +47,8 @@ type Props = {
   canDeposit: boolean;
   busy: boolean;
   error?: string | null;
+  /** A line for a step that takes a while, such as device data collection. */
+  status?: string | null;
   applePayReady: boolean;
   googlePayReady: boolean;
   /** Wallets this payment can actually use; anything else is hidden. */
@@ -68,6 +70,7 @@ export function SelectPaymentMethodScreen({
   canDeposit,
   busy,
   error,
+  status,
   applePayReady,
   googlePayReady,
   offeredWallets,
@@ -229,6 +232,8 @@ export function SelectPaymentMethodScreen({
             <Text style={styles.bannerText}>{error}</Text>
           </View>
         ) : null}
+
+        {!error && status ? <Text style={styles.hint}>{status}</Text> : null}
       </ScrollView>
 
       <View style={styles.footer}>

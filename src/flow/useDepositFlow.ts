@@ -2,8 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 import type { CardFormHandle } from '@juspay-tech/react-native-hyperswitch-payment-methods';
 
-import { syncPayment, type CreatePaymentResponse } from '../server/api';
+import {
+  syncPayment,
+  type ConfirmPaymentResponse,
+  type CreatePaymentResponse,
+} from '../server/api';
 import { amountValue } from '../ui/money';
+import {
+  onReturnFromRedirect,
+  returnedPaymentId,
+} from './returnFromRedirect';
 import {
   defaultSelection,
   describeSelection,
@@ -47,8 +55,19 @@ export function useDepositFlow() {
   const [status, setStatus] = useState<string | null>(null);
   /** An informational line for the lobby, separate from errors. */
   const [notice, setNotice] = useState<string | null>(null);
-  /** A payment left mid-authentication, waiting to be reconciled. */
-  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
+  /**
+   * A payment left mid-authentication, and the one being read back right now.
+   *
+   * Refs, not state: nothing renders them, and two wake-ups race for them — the
+   * return link arriving and the app coming forward. They can fire in the same
+   * tick, and a state value would still be the old one in whichever handler ran
+   * second, so the payment would be read twice.
+   *
+   * A ref does not survive the process being killed, which is the other half of
+   * why the link carries the payment id. See `returnFromRedirect.ts`.
+   */
+  const pendingPaymentId = useRef<string | null>(null);
+  const settlingPaymentId = useRef<string | null>(null);
 
   const [amount, setAmount] = useState('10');
 
@@ -100,32 +119,90 @@ export function useDepositFlow() {
   /**
    * Step 5 — reconcile after a redirect.
    *
-   * The app was in the background while the challenge happened, so there is no
-   * callback to wait for: when it comes forward again, the payment is read back
-   * with `force_sync` and the lobby reports whatever it actually says.
+   * The player authenticated somewhere this app cannot see, so nothing here was
+   * told the answer. Both ways back end in the same place: read the payment with
+   * `force_sync` and report whatever it actually says.
    */
-  useEffect(() => {
-    if (!pendingPaymentId) {
-      return;
+  /** How a payment read back from the server is reported, wherever it is read. */
+  const reportPayment = useCallback((result: ConfirmPaymentResponse) => {
+    if (result.error_code || result.error_message) {
+      setError(`${result.error_code ?? 'error'}: ${result.error_message ?? ''}`);
+    } else {
+      setStatus(`Payment ${result.payment_id} · ${result.status}`);
     }
-    const subscription = AppState.addEventListener('change', async next => {
-      if (next !== 'active') {
+  }, []);
+
+  /**
+   * Reads one payment back, once.
+   *
+   * The ref is claimed before the first `await`, so when the link and the
+   * foreground transition both arrive for the same payment the second one finds
+   * it taken and does nothing — otherwise the lobby reports the same payment
+   * twice. Only a payment that was actually read is forgotten: a read that
+   * failed stays pending, so coming forward again tries it rather than losing
+   * the payment in silence.
+   */
+  const settlePayment = useCallback(
+    async (paymentId: string) => {
+      if (settlingPaymentId.current === paymentId) {
         return;
       }
+      settlingPaymentId.current = paymentId;
       try {
-        const result = await syncPayment(pendingPaymentId);
-        setPendingPaymentId(null);
-        if (result.error_code || result.error_message) {
-          setError(`${result.error_code ?? 'error'}: ${result.error_message ?? ''}`);
-        } else {
-          setStatus(`Payment ${result.payment_id} · ${result.status}`);
+        const result = await syncPayment(paymentId);
+        if (pendingPaymentId.current === paymentId) {
+          pendingPaymentId.current = null;
         }
+        reportPayment(result);
       } catch (e) {
         setError(messageOf(e));
+      } finally {
+        settlingPaymentId.current = null;
+      }
+    },
+    [reportPayment],
+  );
+
+  /**
+   * Step 5b — the player came back through the link.
+   *
+   * The id in the URL leads and the remembered one is only a fallback: after a
+   * cold start there is nothing remembered, and after a warm one the two name
+   * the same payment anyway.
+   */
+  useEffect(
+    () =>
+      onReturnFromRedirect(url => {
+        const paymentId = returnedPaymentId(url) ?? pendingPaymentId.current;
+        if (!paymentId) {
+          // A link that names no payment, with none waiting. Said out loud,
+          // because doing nothing looks exactly like a deep link wired wrong.
+          setNotice('Came back from authentication, but with no payment to read.');
+          return;
+        }
+        setScreen('lobby');
+        setStatus('Checking the payment…');
+        settlePayment(paymentId);
+      }),
+    [settlePayment],
+  );
+
+  /**
+   * The fallback for a return that never arrives as a link: the player pressed
+   * back out of the browser, or the page closed without following `return_url`.
+   *
+   * Subscribed for the life of the app and reading the ref, rather than
+   * resubscribed whenever the pending payment changes — rebuilding the listener
+   * inside the window it is meant to catch is its own race.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', next => {
+      if (next === 'active' && pendingPaymentId.current) {
+        settlePayment(pendingPaymentId.current);
       }
     });
     return () => subscription.remove();
-  }, [pendingPaymentId]);
+  }, [settlePayment]);
 
   // ---------------------------------------------------------------------------
   // Step 1 — create the intent when the player asks to deposit
@@ -219,7 +296,7 @@ export function useDepositFlow() {
           setError(collected.message);
           return;
         }
-        const outcome = await confirmDeposit(current, collected.body);
+        const outcome = await confirmDeposit(current, collected.body, setStatus);
         // However it ended, the player goes back to the lobby to read it.
         setScreen('lobby');
 
@@ -227,8 +304,16 @@ export function useDepositFlow() {
           // Step 5 — the issuer wants the player somewhere else first. Send
           // them, remember which payment is waiting, and reconcile on return.
           setStatus(outcome.message);
-          setPendingPaymentId(outcome.paymentId);
+          pendingPaymentId.current = outcome.paymentId;
           Linking.openURL(outcome.redirect).catch(e => setError(messageOf(e)));
+          return;
+        }
+
+        if ('sync' in outcome) {
+          // Step 5 — there is nothing to present: device data collection ended
+          // without a challenge, so the payment's own status is the answer.
+          setStatus(outcome.message);
+          reportPayment(await syncPayment(outcome.sync));
           return;
         }
 
@@ -243,7 +328,7 @@ export function useDepositFlow() {
         setBusy(false);
       }
     },
-    [payment],
+    [payment, reportPayment],
   );
 
   /** Wallet button, wherever it is pressed. */
@@ -421,6 +506,7 @@ export function useDepositFlow() {
       canDeposit,
       busy,
       error,
+      status,
       applePayReady,
       googlePayReady,
       offeredWallets: (['google_pay', 'apple_pay'] as const).filter(walletOffered),

@@ -4,6 +4,8 @@ import {
   type ConfirmPaymentResponse,
   type CreatePaymentResponse,
 } from '../server/api';
+import { invokeDdcOf, runDeviceDataCollection } from './collectDeviceData';
+import { returnUrl } from './returnFromRedirect';
 import type { DepositOutcome } from './types';
 
 /**
@@ -27,8 +29,16 @@ import type { DepositOutcome } from './types';
 export async function confirmDeposit(
   payment: CreatePaymentResponse,
   body: ConfirmPaymentData,
+  /** Called with a line for the player when a step takes a visible while. */
+  onProgress?: (message: string) => void,
 ): Promise<DepositOutcome> {
-  const result = await confirmPayment(payment.payment_id, body);
+  // Step 5b — say where to come back to before sending the player anywhere.
+  // A confirm that may end in a redirect has to carry its own way back; see
+  // `returnFromRedirect.ts` for why that is a scheme and not an address.
+  const result = await confirmPayment(payment.payment_id, {
+    ...body,
+    return_url: returnUrl(),
+  });
 
   const redirect = redirectUrlOf(result);
   if (redirect) {
@@ -37,6 +47,26 @@ export async function confirmDeposit(
       paymentId: result.payment_id,
       message: 'Finishing authentication…',
     };
+  }
+
+  // Step 5a — the issuer wants to look at the device before it decides. This
+  // runs out of sight and ends in one of the other answers: a redirect to make,
+  // or nothing to present and a status to read.
+  const ddc = invokeDdcOf(result);
+  if (ddc) {
+    onProgress?.('Checking with your bank…');
+    const collected = await runDeviceDataCollection(ddc);
+    if (collected.kind === 'redirect') {
+      return {
+        redirect: collected.url,
+        paymentId: result.payment_id,
+        message: 'Finishing authentication…',
+      };
+    }
+    if (collected.kind === 'no_redirect') {
+      return { sync: result.payment_id, message: 'Checking the payment…' };
+    }
+    return { ok: false, message: collected.message };
   }
 
   const nextAction = pendingNextAction(result);
@@ -68,11 +98,17 @@ export async function confirmDeposit(
  *
  *   { "type": "redirect_to_url", "redirect_to_url": "https://…" }
  *
- * `redirect_to_url` is handled: the flow opens that URL and reconciles the
- * payment when the player returns. The other shapes Hyperswitch can send —
- * `display_qr_code`, `invoke_sdk_client`, `third_party_sdk_session_token` —
- * are reported rather than presented, so a pending payment is never shown as
- * done.
+ * Two shapes are handled:
+ *
+ *   - `redirect_to_url` — the flow opens that URL and reconciles the payment
+ *     when the player returns.
+ *   - `invoke_ddc` — the issuer wants the device looked at first; see
+ *     `collectDeviceData.ts`. It ends in a `redirect_to_url` of its own, so it
+ *     is a step on the way to the one above rather than a separate ending.
+ *
+ * The other shapes Hyperswitch can send — `display_qr_code`,
+ * `invoke_sdk_client`, `third_party_sdk_session_token` — are reported rather
+ * than presented, so a pending payment is never shown as done.
  */
 function redirectUrlOf(result: ConfirmPaymentResponse): string | null {
   const action = result.next_action as

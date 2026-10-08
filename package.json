@@ -55,7 +55,8 @@
     },
     "ios": {
       "modulesProvider": {
-        "NativeApplePay": "RCTNativeApplePay"
+        "NativeApplePay": "RCTNativeApplePay",
+        "NativeDdc": "RCTNativeDdc"
       },
       "componentProvider": {
         "HyperApplePayButton": "RCTApplePayButtonView"

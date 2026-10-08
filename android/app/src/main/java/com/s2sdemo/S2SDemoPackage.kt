@@ -13,6 +13,7 @@ class S2SDemoPackage : BaseReactPackage() {
     override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? =
         when (name) {
             GooglePayModule.NAME -> GooglePayModule(reactContext)
+            DdcModule.NAME -> DdcModule(reactContext)
             else -> null
         }
 
@@ -25,7 +26,15 @@ class S2SDemoPackage : BaseReactPackage() {
                 needsEagerInit = false,
                 isCxxModule = false,
                 isTurboModule = true,
-            )
+            ),
+            DdcModule.NAME to ReactModuleInfo(
+                name = DdcModule.NAME,
+                className = DdcModule::class.java.name,
+                canOverrideExistingModule = false,
+                needsEagerInit = false,
+                isCxxModule = false,
+                isTurboModule = true,
+            ),
         )
     }
 

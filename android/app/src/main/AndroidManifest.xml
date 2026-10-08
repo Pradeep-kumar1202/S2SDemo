@@ -30,6 +30,33 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <!--
+          The way back in. The payments API sends the player's browser to the
+          `return_url` the confirm call carried, and a scheme of our own is what
+          lets a page out in the browser reach back into this app.
+
+          ${applicationId} is substituted at build time, so the scheme is this
+          app's id and cannot collide with another app's. Two other places hold
+          the same string and neither can interpolate it — returnUrl() in
+          src/flow/returnFromRedirect.ts, which has no way to read the app id,
+          and CFBundleURLTypes in ios/S2SDemo/Info.plist, whose bundle id is a
+          different string entirely. So changing applicationId means changing
+          those two by hand; nothing will warn you.
+
+          BROWSABLE is not optional: without it a browser will not resolve the
+          link at all. Matching on scheme alone leaves the host and the path a
+          JavaScript decision rather than a rebuild.
+
+          android:launchMode="singleTask" above is what makes the link arrive at
+          the activity already running instead of stacking a second copy of the
+          app on top of the first.
+        -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="${applicationId}.hyperswitchs2s" />
+        </intent-filter>
       </activity>
     </application>
 </manifest>

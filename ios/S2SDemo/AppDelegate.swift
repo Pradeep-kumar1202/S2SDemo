@@ -31,6 +31,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     return true
   }
+
+  /// Hands a URL opened in our own scheme to React Native's Linking module.
+  ///
+  /// Without this the system brings the app forward and nothing else happens:
+  /// the `url` event the deposit flow listens for is emitted from right here.
+  /// Android needs no equivalent — `ReactActivity` already forwards
+  /// `onNewIntent` for us. The scheme itself is declared in Info.plist and must
+  /// match returnUrl() in src/flow/returnFromRedirect.ts.
+  func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    RCTLinkingManager.application(app, open: url, options: options)
+  }
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {

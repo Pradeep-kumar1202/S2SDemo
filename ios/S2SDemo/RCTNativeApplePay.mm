@@ -6,6 +6,8 @@
 #import "RCTNativeApplePay.h"
 
 #import <PassKit/PassKit.h>
+// S2SDemo-Swift.h also declares HeadlessWebView, which conforms to WebKit protocols.
+#import <WebKit/WebKit.h>
 #import <React/RCTBridge.h>
 // The generated Swift header references AppDelegate's superclass; ObjC++ cannot @import it, so declare it first.
 #import <React-RCTAppDelegate/RCTDefaultReactNativeFactoryDelegate.h>

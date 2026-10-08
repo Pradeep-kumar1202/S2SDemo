@@ -61,6 +61,8 @@ src/
     tokenizeCard.ts          step 3a new card / saved-card CVC → token
     payWithWallet.ts         step 3b wallet sheet → network token
     confirmDeposit.ts        step 4  confirm, and step 5 detection
+    collectDeviceData.ts     step 5a device data collection, off-screen
+    returnFromRedirect.ts    step 5b the deep link back from an authentication
     types.ts                 CollectOutcome / DepositOutcome
   server/                  talking to our own backend: api.ts, config.ts
   cards/                   the hosted card fields: vault.ts + the two field sets
@@ -253,13 +255,42 @@ authorize and fraud calls sit either side of it at `server/index.js:159` and
 
 ### Step 5 — Next action, and settling
 
-**Only partly implemented.** `confirmDeposit.ts:66` detects a `next_action` on
-the confirm response and reports the payment as unfinished rather than claiming
-success — but nothing presents the 3DS challenge, and no webhook is received.
-`GET /api/payments/:id` (`server/index.js:353`) shows where the status sync
-belongs; the app does not call it yet.
+A confirm does not always end the story. The `next_action` shapes:
 
-However it ends, the player returns to the lobby, which shows the result.
+- **`redirect_to_url`** — handled. The app opens the URL in the device browser
+  with `Linking.openURL`, and the confirm call carried a `return_url` of its own
+  so the player can be sent back: `com.s2sdemo.hyperswitchs2s://deposit`, a
+  scheme this app registers, because a browser can hand a URL to the OS but
+  cannot navigate into an app. It is declared in three places that have to
+  agree — `returnUrl()` in `src/flow/returnFromRedirect.ts`, the second
+  intent-filter in `android/app/src/main/AndroidManifest.xml`, and
+  `CFBundleURLTypes` in `ios/S2SDemo/Info.plist`.
+
+  The link arrives either as a `url` event, when the app was alive behind the
+  browser, or from `getInitialURL()`, when it had been killed and the system
+  started it for the link. Both are wired, and the link names the payment, so a
+  deposit survives the app being swiped away mid-payment. Coming forward without
+  a link still reconciles, as it always did, which covers a player who presses
+  back out of the browser.
+
+  Nothing in the returned URL is believed. It arrives with a `status` and an
+  HMAC `signature`, but a custom scheme has no sender — any app can open one —
+  and the key that would verify the signature is a server secret. Only the
+  payment id is read, and only to ask the server with `force_sync`.
+- **`invoke_ddc`** — handled. Device data collection: the issuer sends a URL to
+  be loaded out of sight so it can read the device itself before deciding
+  whether to challenge. A device has no page to put an iframe in, so the frame
+  is native: `DdcModule.kt` and `HeadlessWebView.swift` load the URL in a 1×1
+  off-screen WebView, inside a wrapper page whose only job is to forward the
+  message the issuer's iframe posts. `collectDeviceData.ts` reads that message —
+  an ordinary `redirect_to_url`, so the flow rejoins the path above — and gives
+  up after `ddc_data.timeout_ms`, or 30s when it is null, failing the deposit.
+  The player sees a status line, not the WebView.
+- `display_qr_code`, `invoke_sdk_client`, `third_party_sdk_session_token` —
+  reported rather than presented, so a pending payment is never shown as done.
+
+No webhook is received. However it ends, the player returns to the lobby, which
+shows the result.
 
 ---
 
@@ -274,7 +305,7 @@ called so the shape of the flow stays honest.
 | PAM authorize | `server/index.js:159` | Always approves |
 | Fraud screening | `server/index.js:169` | Always approves |
 | BIN eligibility | — | The diagram checks the BIN after card entry; not called here |
-| Next action (3DS / redirect / QR) | `confirmDeposit.ts:66` | Detected and reported, never presented |
+| Next action: QR, SDK client, third-party session | `confirmDeposit.ts` | Detected and reported, never presented |
 | Status webhook + sync | `server/index.js:183` | Route exists, nothing calls it, no webhook endpoint |
 | Manual capture | `server/index.js:193` | Route exists; payments capture automatically |
 
