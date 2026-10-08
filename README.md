@@ -59,6 +59,7 @@ src/
     tokenizeCard.ts          step 3a new card / saved-card CVC → token
     payWithWallet.ts         step 3b why wallets are not wired here
     confirmDeposit.ts        step 4  confirm, and step 5 detection
+    collectDeviceData.ts     step 5a hidden-iframe device data collection
     types.ts                 CollectOutcome / DepositOutcome
   server/                  talking to our own backend: api.ts, config.ts
   cards/                   hosted card fields: session, the two field sets, types
@@ -215,10 +216,27 @@ Confirm needs the secret key, so it happens on the server, never in the browser.
 
 ### Step 5 — Next action, and settling
 
-Only partly implemented: `confirmDeposit.ts` detects a `next_action` and reports
-the payment as unfinished rather than claiming success, but nothing presents the
-3DS challenge and no webhook is received. Whatever happens, the player returns
-to the lobby, which shows the result.
+A confirm does not always end the story. Two `next_action` shapes are handled:
+
+- **`redirect_to_url`** — the payment id is written to `sessionStorage`, the page
+  navigates to the issuer, and on the way back the lobby reads the payment with
+  `force_sync` (`useDepositFlow.ts`). The redirect replaces the page, so there is
+  no state to return to; the id on disk is the whole handover.
+- **`invoke_ddc`** — device data collection, in `collectDeviceData.ts`. Before
+  deciding whether to challenge, the issuer wants to see the device, and it
+  insists on reading the browser itself: it sends a URL, the page loads it in a
+  **hidden** 1×1 iframe, and that page posts a `next_action` back. The reply is
+  an ordinary `redirect_to_url`, so the flow rejoins the case above — unless its
+  `redirect_mode` is `if_required`, which means no challenge is needed, nothing
+  is presented, and the payment's own status is read instead. The wait is
+  `ddc_data.timeout_ms`, or 30s when it is null, after which the deposit fails;
+  the iframe and its listener are removed on every path, or a retry would
+  resolve on the previous attempt's message.
+
+Everything else Hyperswitch can send — `display_qr_code`, `invoke_sdk_client`,
+`third_party_sdk_session_token` — is reported rather than presented, so a pending
+payment is never shown as done. No webhook is received. Whatever happens, the
+player returns to the lobby, which shows the result.
 
 ---
 
@@ -231,7 +249,7 @@ to the lobby, which shows the result.
 | Fraud screening | Stubbed on the server; always approves |
 | BIN eligibility | Not called |
 | Apple Pay from localhost | Wired, but Apple only validates the domain its merchant session was issued for |
-| Next action (3DS / redirect) | Detected and reported, never presented |
+| Next action: QR, SDK client, third-party session | Detected and reported, never presented |
 | Status webhook + sync | Route exists on the server, nothing calls it |
 | Manual capture | Route exists; payments capture automatically |
 

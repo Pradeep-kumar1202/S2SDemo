@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CardFormHandle } from '../cards/types';
-import { syncPayment, type CreatePaymentResponse } from '../server/api';
+import {
+  syncPayment,
+  type ConfirmPaymentResponse,
+  type CreatePaymentResponse,
+} from '../server/api';
 import { amountValue } from '../ui/money';
 import {
   defaultSelection,
@@ -109,21 +113,24 @@ export function useDepositFlow() {
    * payment id was written to sessionStorage on the way out, and on the way
    * back the payment is read with `force_sync` and reported in the lobby.
    */
+  /** How a payment read back from the server is reported, wherever it is read. */
+  const reportPayment = useCallback((result: ConfirmPaymentResponse) => {
+    if (result.error_code || result.error_message) {
+      setError(`${result.error_code ?? 'error'}: ${result.error_message ?? ''}`);
+    } else {
+      setStatus(`Payment ${result.payment_id} · ${result.status}`);
+    }
+  }, []);
+
   useEffect(() => {
     const pendingPaymentId = takePendingPayment();
     if (!pendingPaymentId) {
       return;
     }
     syncPayment(pendingPaymentId)
-      .then(result => {
-        if (result.error_code || result.error_message) {
-          setError(`${result.error_code ?? 'error'}: ${result.error_message ?? ''}`);
-        } else {
-          setStatus(`Payment ${result.payment_id} · ${result.status}`);
-        }
-      })
+      .then(reportPayment)
       .catch(e => setError(messageOf(e)));
-  }, []);
+  }, [reportPayment]);
 
   // ---------------------------------------------------------------------------
   // Step 1 — create the intent when the player asks to deposit
@@ -222,7 +229,7 @@ export function useDepositFlow() {
           setError(collected.message);
           return;
         }
-        const outcome = await confirmDeposit(current, collected.body);
+        const outcome = await confirmDeposit(current, collected.body, setStatus);
         // However it ended, the player goes back to the lobby to read it.
         setScreen('lobby');
 
@@ -233,6 +240,14 @@ export function useDepositFlow() {
           setStatus(outcome.message);
           rememberPendingPayment(outcome.paymentId);
           window.location.assign(outcome.redirect);
+          return;
+        }
+
+        if ('sync' in outcome) {
+          // Step 5 — there is nothing to present: device data collection ended
+          // without a challenge, so the payment's own status is the answer.
+          setStatus(outcome.message);
+          reportPayment(await syncPayment(outcome.sync));
           return;
         }
 
@@ -247,7 +262,7 @@ export function useDepositFlow() {
         setBusy(false);
       }
     },
-    [payment],
+    [payment, reportPayment],
   );
 
   const payWithWallet = useCallback(
@@ -447,6 +462,7 @@ export function useDepositFlow() {
       canDeposit,
       busy,
       error,
+      status,
       googlePayReady,
       publishableKey: payment?.publishable_key ?? '',
       wallets: payment ? walletsWithTokens(payment).filter(walletOffered) : [],

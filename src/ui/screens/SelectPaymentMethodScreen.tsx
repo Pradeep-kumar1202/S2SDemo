@@ -36,6 +36,8 @@ type Props = {
   canDeposit: boolean;
   busy: boolean;
   error?: string | null;
+  /** A line for a step that takes a while, such as device data collection. */
+  status?: string | null;
   googlePayReady: boolean;
   publishableKey: string;
   wallets: WalletName[];
@@ -56,6 +58,7 @@ export function SelectPaymentMethodScreen({
   canDeposit,
   busy,
   error,
+  status,
   googlePayReady,
   publishableKey,
   wallets,
@@ -227,6 +230,7 @@ export function SelectPaymentMethodScreen({
         ) : null}
 
         {error ? <p className="banner">{error}</p> : null}
+        {!error && status ? <p className="muted small center">{status}</p> : null}
       </div>
 
       <footer className="sheet-footer">

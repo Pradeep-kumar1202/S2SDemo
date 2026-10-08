@@ -259,7 +259,7 @@ app.get("/api/create-payment", async (req, res, next) => {
         profile_id: HS_PROFILE_ID,
         customer_id: player_id,
         description: 'test payment',
-        authentication_type: "no_three_ds",
+        authentication_type: "three_ds",
         setup_future_usage: "on_session",
         billing: {
           address: {
