@@ -58,6 +58,15 @@ const HS_PROFILE_ID = process.env.HYPERSWITCH_PROFILE_ID;
 const HS_CUG_USER = /^(1|true|yes)$/i.test(
   process.env.HYPERSWITCH_CUG_USER || "",
 );
+// Sent as `x-merchant-domain`: the domain Hyperswitch issues the Apple Pay
+// merchant session for (`session_token_data.domainName`). Apple Pay runs on the
+// merchant's top-level page, not in the checkout's iframe, so this is the
+// merchant site's domain — a bare hostname, verified with Apple. A URL is
+// accepted too and reduced to its hostname.
+const MERCHANT_DOMAIN = (process.env.MERCHANT_DOMAIN || "s2s-web-demo.netlify.app")
+  .trim()
+  .replace(/^[a-z]+:\/\//i, "")
+  .replace(/[/:].*$/, "");
 for (const [name, value] of Object.entries({
   HYPERSWITCH_API_KEY: HS_API_KEY,
   HYPERSWITCH_PUBLISHABLE_KEY: HS_PUBLISHABLE_KEY,
@@ -105,7 +114,7 @@ async function hsFetch(path, { method = "GET", body, auth = "payments" } = {}) {
       accept: "application/json",
       "Content-Type": "application/json",
       "X-Integration-Type": "server",
-      "x-merchant-domain": "your.domain.com",
+      "x-merchant-domain": MERCHANT_DOMAIN,
       ...(HS_CUG_USER ? { "x-cug-user": "true" } : {}),
       ...AUTH[auth](),
     },
@@ -246,7 +255,7 @@ app.get("/api/create-payment", async (req, res, next) => {
   }
 
   const amount = 0;
-  const currency = "CAD";
+  const currency = "USD";
 
   try {
     await ensureCustomer(player_id);
@@ -541,16 +550,22 @@ app.use((err, _req, res, _next) => {
     .json({ error: err.message || "Internal Server Error" });
 });
 
-app
-  .listen(PORT, HOST, () => {
-    console.log(`Mock server listening on http://${HOST}:${PORT}`);
-  })
-  .on("error", (err) => {
-    if (err.code === "EADDRINUSE") {
-      console.log(`❌ Port ${PORT} is already in use!`);
-      process.exit(1);
-    } else {
-      console.log("Server error:", err);
-      process.exit(1);
-    }
-  });
+module.exports = { app };
+
+// Run directly (`npm run server`) it listens on PORT. Deployed, the Netlify
+// function in netlify/functions/api.js requires it and serves the same app.
+if (require.main === module) {
+  app
+    .listen(PORT, HOST, () => {
+      console.log(`Mock server listening on http://${HOST}:${PORT}`);
+    })
+    .on("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        console.log(`❌ Port ${PORT} is already in use!`);
+        process.exit(1);
+      } else {
+        console.log("Server error:", err);
+        process.exit(1);
+      }
+    });
+}

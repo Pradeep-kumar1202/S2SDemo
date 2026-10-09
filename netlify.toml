@@ -1,5 +1,12 @@
-# Netlify build settings for the static Next.js export.
-# `next build` with `output: "export"` emits the site into `out/`.
+# Netlify: the checkout (a static Next.js export) and the merchant server (a
+# function), on one site.
+#
+# Set the server's variables in the Netlify UI (Site settings -> Environment
+# variables): HYPERSWITCH_BASE_URL, HYPERSWITCH_API_KEY,
+# HYPERSWITCH_PUBLISHABLE_KEY, HYPERSWITCH_PROFILE_ID, and optionally
+# HYPERSWITCH_CUG_USER, CORS_ORIGIN and MERCHANT_DOMAIN.
+#
+# The merchant site (merchant/) is a separate Netlify site: it frames this one.
 
 [build]
   command = "npm run build"
@@ -7,7 +14,18 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # `next build` emits the static site into `out/` (see next.config.ts).
+  NEXT_OUTPUT = "export"
+  # The server is on this same site, under /api, so the checkout calls it by
+  # path. Baked in at build time.
+  NEXT_PUBLIC_SERVER_URL = ""
 
-# The frontend calls the merchant backend (server/index.js) at the URL baked in
-# via NEXT_PUBLIC_SERVER_URL at build time. Set it in the Netlify UI
-# (Site settings -> Environment variables) to wherever the backend is hosted.
+[functions]
+  directory = "netlify/functions"
+
+# The checkout calls /api/...; the function serves the whole Express app.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true

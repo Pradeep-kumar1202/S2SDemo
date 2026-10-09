@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  The merchant's own site — the top-level domain.
+
+  As in a real integration, the whole checkout runs in an iframe on another
+  domain (%CHECKOUT_URL%), and this page only frames it. Apple Pay cannot run in
+  that iframe, so this page also mounts the checkout domain's bridge script,
+  which runs the Apple Pay session here on the iframe's behalf. See
+  public/apple-pay-bridge.js in the checkout app.
+
+  allow="payment" lets Google Pay run inside the iframe; it needs no bridge.
+
+  %CHECKOUT_URL% is filled in by merchant/server.js. Deployed as a static page,
+  replace it with the checkout's URL.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Merchant — Deposit demo</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0a0f0c;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+    <script src="%CHECKOUT_URL%/apple-pay-bridge.js"></script>
+  </head>
+  <body>
+    <iframe src="%CHECKOUT_URL%/" title="Deposit" allow="payment"></iframe>
+  </body>
+</html>

@@ -2,6 +2,11 @@ import type {
   ApplePaySessionToken,
   WalletPaymentMethodData,
 } from "../server/api";
+import {
+  canMakePaymentsInTopWindow,
+  isFramed,
+  startApplePayInTopWindow,
+} from "./applePayBridge";
 import { toCamelCaseKeys, toSnakeCaseKeys } from "./keyCase";
 
 /**
@@ -15,6 +20,10 @@ import { toCamelCaseKeys, toSnakeCaseKeys } from "./keyCase";
  *    to start the session. There is no test mode around this.
  * 2. **Only Safari implements Apple Pay JS.** `window.ApplePaySession` does not
  *    exist in Chrome or Firefox, so the button is simply not offered there.
+ * 3. **It does not run in the checkout's iframe.** The checkout is framed on the
+ *    merchant's page, from another domain, so the session runs in the top-level
+ *    window instead, through `public/apple-pay-bridge.js` — see
+ *    `applePayBridge.ts`. The verified domain is then the merchant page's.
  *
  * Like Google Pay, everything here comes from the session token: the request
  * is built from `payment_request_data`, and the merchant is validated with
@@ -35,7 +44,10 @@ export class ApplePayError extends Error {
   }
 }
 
-/** Safari with a card set up, and nothing else. */
+/**
+ * Safari with a card set up, and nothing else — in this window. Framed, the
+ * window that matters is the top one; see `applePayAvailability`.
+ */
 export function isApplePayAvailable(): boolean {
   try {
     return (
@@ -61,9 +73,9 @@ export function isApplePayAvailable(): boolean {
  * fetches the token server to server, so it looks the same whichever browser
  * the player is in. Only the browser can say it is Safari.
  */
-export function canPayWithApplePay(
+export async function canPayWithApplePay(
   token: ApplePaySessionToken | undefined,
-): boolean {
+): Promise<boolean> {
   const session = token?.session_token_data;
   const hasMerchantSession =
     session != null &&
@@ -72,8 +84,18 @@ export function canPayWithApplePay(
   return (
     hasMerchantSession &&
     token?.payment_request_data != null &&
-    isApplePayAvailable()
+    (await applePayAvailability())
   );
+}
+
+/**
+ * Whether Apple Pay can run where the sheet will open: this window, or — when
+ * the checkout is framed — the top one, asked through the bridge.
+ */
+export function applePayAvailability(): Promise<boolean> {
+  return isFramed()
+    ? canMakePaymentsInTopWindow()
+    : Promise.resolve(isApplePayAvailable());
 }
 
 /**
@@ -113,6 +135,9 @@ export function buildPaymentRequest(
  * the token's own `session_token_data`; a caller whose token is being replaced
  * passes a promise of the new one instead. Apple only asks for it once the
  * sheet is already open, so it is free to still be in flight when this starts.
+ *
+ * Framed, the top window opens the sheet and this only builds the request and
+ * reads back the result; the session itself never exists here.
  */
 export function payWithApplePay(
   token: ApplePaySessionToken,
@@ -121,6 +146,22 @@ export function payWithApplePay(
     merchantSession = Promise.resolve(token.session_token_data),
   }: { amount?: string; merchantSession?: Promise<unknown> } = {},
 ): Promise<WalletPaymentMethodData> {
+  if (isFramed()) {
+    // Posted at once, still inside the tap — the top window needs it to be.
+    return startApplePayInTopWindow(
+      buildPaymentRequest(token, amount),
+      merchantSession,
+    ).then((outcome) => {
+      if (!outcome.ok) {
+        throw new ApplePayError(
+          outcome.cancelled ? "cancelled" : "failed",
+          outcome.message,
+        );
+      }
+      return confirmBodyFor(outcome.payment);
+    });
+  }
+
   if (!isApplePayAvailable()) {
     return Promise.reject(
       new ApplePayError("unavailable", "Apple Pay is only available in Safari"),

@@ -22,9 +22,14 @@ the server are deliberately the same shape, so the two can be read side by side.
 ```sh
 npm install
 cp .env.example .env     # then fill in your keys
-npm run server           # the merchant backend, port 5252
-npm run dev              # the app, port 3000
+npm run server           # the merchant backend, port 5300
+npm run dev              # the app (the checkout), port 3000
+npm run merchant         # the merchant site, port 3001 — frames the app
+npm run logs             # optional: the log server and dashboard, port 4000
 ```
+
+Open http://localhost:3001 to see the checkout as a merchant embeds it: in an
+iframe, from another origin. http://localhost:3000 is the checkout on its own.
 
 `.env` needs four values from the Hyperswitch dashboard:
 
@@ -35,8 +40,10 @@ npm run dev              # the app, port 3000
 | `HYPERSWITCH_PUBLISHABLE_KEY` | `pk_snd_…`, used for session tokens and the SDK |
 | `HYPERSWITCH_PROFILE_ID` | `pro_…`, the profile the payment is created against |
 | `HYPERSWITCH_CUG_USER` | Optional. `true` sends the `x-cug-user` header on every call |
+| `MERCHANT_DOMAIN` | Optional. The merchant site's domain, which Apple Pay's merchant session is issued for (default `s2s-web-demo.netlify.app`) |
+| `CHECKOUT_URL` | Optional. Where the merchant site loads the checkout from (default `http://localhost:3000`) |
 
-The browser calls the server at `http://localhost:5252`; override with
+The browser calls the server at `http://localhost:5300`; override with
 `NEXT_PUBLIC_SERVER_URL`. The server must allow that origin (`CORS_ORIGIN`).
 
 > The server is a separate Express process rather than a Next route handler, on
@@ -50,6 +57,9 @@ The browser calls the server at `http://localhost:5252`; override with
 
 ```
 server/index.js            the merchant backend: one route per step of the flow
+netlify/functions/api.js   the same backend, deployed as a Netlify function
+merchant/                  the merchant site: frames the checkout, mounts the Apple Pay bridge
+public/apple-pay-bridge.js the bridge itself, run on the merchant page
 app/page.tsx               the router: three screens, no logic
 src/
   flow/                    THE SEQUENCE — start here
@@ -64,6 +74,7 @@ src/
   server/                  talking to our own backend: api.ts, config.ts
   cards/                   hosted card fields: session, the two field sets, types
   ui/                      screens and presentation only — no flow logic
+  wallets/                 Google Pay, Apple Pay, and the iframe side of the Apple Pay bridge
   paymentMethods.ts        shaping the method list: ordering, labels, selection
 ```
 
@@ -181,7 +192,18 @@ Two constraints on Apple Pay are Apple's and cannot be worked around:
   the button is not offered there.
 - **The merchant session is issued for one verified domain**, named in
   `session_token_data.domainName`. Served from anywhere else — localhost
-  included — Safari refuses to start the session.
+  included — Safari refuses to start the session. The server asks for it with
+  the `x-merchant-domain` header (`MERCHANT_DOMAIN`).
+
+**Apple Pay from inside the iframe.** A merchant embeds this checkout in an
+iframe on another domain, and Apple Pay does not run there. So, as
+hyperswitch-web does, the merchant page mounts `public/apple-pay-bridge.js` from
+the checkout's domain, and the session runs in the top-level window:
+`src/wallets/applePayBridge.ts` sends it the payment request on the tap, hands
+over the merchant session when Apple asks, and gets the token back by
+`postMessage`. The verified domain is therefore the merchant page's. Opened on
+its own, the checkout runs Apple Pay itself. Google Pay needs no bridge — the
+iframe's `allow="payment"` is enough.
 
 ### Step 4 — Confirm
 
@@ -257,6 +279,14 @@ The amount is displayed in GBP while the intent is created in CAD, because the
 design is a GBP screen and the sandbox profile is CAD.
 
 ---
+
+## Deploying
+
+`netlify.toml` deploys the checkout as a static export, with the merchant
+backend as a Netlify function under `/api` on the same site — set the
+`HYPERSWITCH_*` variables on that site. The merchant site is a second site:
+`merchant/index.html`, with `%CHECKOUT_URL%` replaced by the checkout's URL,
+plus `public/.well-known/` for Apple's domain verification.
 
 ## Notes for integrators
 

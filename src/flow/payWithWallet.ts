@@ -40,7 +40,8 @@ import { toMinorUnits } from './updateIntent';
  * validated merchant session and the browser is Safari. One constraint is
  * Apple's and cannot be worked around: that session is issued for a specific,
  * verified domain (`session_token_data.domainName`), and Safari refuses to
- * start it anywhere else. See `src/wallets/applePay.ts`.
+ * start it anywhere else. With the checkout framed, that is the merchant's
+ * top-level domain, where the sheet runs. See `src/wallets/applePay.ts`.
  */
 
 /**
@@ -66,7 +67,9 @@ export async function walletAvailability(payment: CreatePaymentResponse): Promis
       : await isReadyToPay(googlePayToken, environment)
     : false;
 
-  const applePayReady = canPayWithApplePay(findWalletToken(payment, 'apple_pay'));
+  const applePayReady = await canPayWithApplePay(
+    findWalletToken(payment, 'apple_pay'),
+  );
 
   return { googlePayReady, applePayReady };
 }

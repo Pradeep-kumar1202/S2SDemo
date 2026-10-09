@@ -1,11 +1,11 @@
 /**
  * Deposit amounts shown in the UI.
  *
- * The design is a GBP deposit screen, so the amount the customer types is
- * formatted as GBP. The payment created on the server is a separate, server-side
+ * Deposits are in US dollars — the currency the server creates the payment
+ * in — so the amount the customer types is formatted as USD. The payment created on the server is a separate, server-side
  * amount; nothing here is sent to Hyperswitch.
  */
-export const DEPOSIT_CURRENCY_SYMBOL = '£';
+export const DEPOSIT_CURRENCY_SYMBOL = '$';
 
 /** Preset chips under the amount. */
 export const QUICK_AMOUNTS = ['5', '10', '25'] as const;
@@ -35,17 +35,17 @@ export function amountValue(raw: string): number {
   return Number.isFinite(value) ? value : 0;
 }
 
-/** "10" -> "£10", "10.5" -> "£10.5" (keeps what was typed, for the big display). */
+/** "10" -> "$10", "10.5" -> "$10.5" (keeps what was typed, for the big display). */
 export function formatTypedAmount(raw: string): string {
   return `${DEPOSIT_CURRENCY_SYMBOL}${raw || '0'}`;
 }
 
-/** Always two decimals when they matter: "£10" / "£10.50". */
+/** Always two decimals when they matter: "$10" / "$10.50". */
 export function formatAmount(value: number): string {
   const text = Number.isInteger(value) ? String(value) : value.toFixed(2);
   return `${DEPOSIT_CURRENCY_SYMBOL}${text}`;
 }
 
 export function formatBalance(value: number): string {
-  return `${DEPOSIT_CURRENCY_SYMBOL}${value.toLocaleString('en-GB')}`;
+  return `${DEPOSIT_CURRENCY_SYMBOL}${value.toLocaleString('en-US')}`;
 }

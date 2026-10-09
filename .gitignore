@@ -44,3 +44,9 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# log server storage
+/server/logs/data/
+
+# Playwright MCP browser-session output
+/.playwright-mcp/

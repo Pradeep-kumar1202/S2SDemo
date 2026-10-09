@@ -22,12 +22,6 @@ export function getHyper(publishableKey: string): Promise<unknown> {
 }
 
 /**
- * The vault authorization the Cards SDK needs, taken from the payment the
- * server already created: `session_tokens.vault_details.vault_data`.
- *
- * Passing this means the SDK does no payment-method-session lookup of its own.
- */
-/**
  * The vault the profile uses, as the session takes it: `{vaultType, vaultData}`.
  *
  * Passing the vault outright tells the SDK which one to drive, so it performs
@@ -35,25 +29,23 @@ export function getHyper(publishableKey: string): Promise<unknown> {
  *
  * The payment carries it in `session_tokens.vault_details`, in the API's
  * snake_case, so it is read from there and camelCased — which also means a
- * profile on a vault other than Hyperswitch works without a change here. Some
- * responses carry only the top-level `sdk_authorization` instead, and that is
- * the fallback.
+ * profile on a vault other than Hyperswitch works without a change here. The
+ * vault's own `sdk_authorization` is inside `vault_data`.
+ *
+ * The payment's top-level `sdk_authorization` is a different token — the
+ * payment's, not the vault's — so it is never used here. A payment without
+ * `vault_details` gets `null`, and no card fields.
  */
 export function vaultDetailsFor(
   payment: CreatePaymentResponse | null,
 ): { vaultType: string; vaultData: Record<string, unknown> } | null {
   const raw = payment?.session_tokens?.vault_details;
-  if (raw?.vault_type) {
-    return {
-      vaultType: raw.vault_type,
-      vaultData: toCamelCaseKeys(raw.vault_data ?? {}),
-    };
+  if (!raw?.vault_data) {
+    return null;
   }
 
-  const sdkAuthorization = payment?.sdk_authorization;
-  if (typeof sdkAuthorization === 'string' && sdkAuthorization !== '') {
-    return { vaultType: 'hyperswitch', vaultData: { sdkAuthorization } };
-  }
-
-  return null;
+  return {
+    vaultType: raw.vault_type ?? 'hyperswitch',
+    vaultData: toCamelCaseKeys(raw.vault_data),
+  };
 }

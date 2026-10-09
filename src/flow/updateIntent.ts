@@ -1,6 +1,6 @@
 import { updatePayment, type CreatePaymentResponse } from '../server/api';
 
-/** Hyperswitch amounts are in minor units: £10.50 is 1050. */
+/** Hyperswitch amounts are in minor units: $10.50 is 1050. */
 export const toMinorUnits = (amount: number): number => Math.round(amount * 100);
 
 /**

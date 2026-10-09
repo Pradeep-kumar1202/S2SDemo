@@ -14,6 +14,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // The merchant server is a CommonJS Node process, not part of the app.
     "server/**",
+    // So is the merchant site, which frames the app from another origin.
+    "merchant/**",
+    // And the Netlify function that serves the merchant server.
+    "netlify/**",
   ]),
   {
     rules: {
